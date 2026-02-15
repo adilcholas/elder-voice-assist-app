@@ -10,6 +10,16 @@ dependencies:
   flutter:
     sdk: flutter
 
+  firebase_core: 
+  firebase_auth: 
+  cloud_firestore: 
+  firebase_messaging: 
+  speech_to_text: 
+  flutter_tts: 
+  geolocator: 
+  permission_handler: 
+  provider: 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
