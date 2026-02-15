@@ -19,6 +19,7 @@ dependencies:
   geolocator: 
   permission_handler: 
   provider: 
+  go_router: ^17.1.0
 
 dev_dependencies:
   flutter_test:
