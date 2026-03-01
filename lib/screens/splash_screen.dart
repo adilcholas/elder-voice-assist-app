@@ -9,6 +9,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  // Color constants provided for the brand
+  static const Color primary = Color(0xFFE76F51); // Warm terracotta
 
   @override
   void initState() {
@@ -17,19 +19,30 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(
+      const Duration(seconds: 3),
+    ); // Increased slightly for brand recognition
     if (mounted) {
-      context.go('/role-selection'); // ✅ GoRouter navigation
+      context.go('/role-selection');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.white, // Clean background to make the logo pop
       body: Center(
-        child: Text(
-          "ElderVoiceAssist",
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // The new Aura logo
+            Image.asset(
+              'assets/images/aura.png',
+              width: 180, // Adjusted for visibility
+              height: 180,
+            ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );

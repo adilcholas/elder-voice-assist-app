@@ -12,10 +12,7 @@ class RoleSelectionScreen extends StatelessWidget {
     final roleProvider = Provider.of<RoleProvider>(context, listen: false);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Select Role"),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text("Select Role"), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -23,10 +20,7 @@ class RoleSelectionScreen extends StatelessWidget {
           children: [
             const Text(
               "Who are you?",
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 50),
 
@@ -41,10 +35,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   // ✅ Correct GoRouter navigation
                   context.go('/elder/home');
                 },
-                child: const Text(
-                  "Elder",
-                  style: TextStyle(fontSize: 20),
-                ),
+                child: const Text("Elder", style: TextStyle(fontSize: 20)),
               ),
             ),
 
@@ -61,10 +52,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   // ✅ Correct GoRouter navigation
                   context.go('/caregiver/dashboard');
                 },
-                child: const Text(
-                  "Caregiver",
-                  style: TextStyle(fontSize: 20),
-                ),
+                child: const Text("Caregiver", style: TextStyle(fontSize: 20)),
               ),
             ),
           ],

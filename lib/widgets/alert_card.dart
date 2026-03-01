@@ -20,7 +20,7 @@ class AlertCard extends StatelessWidget {
         onTap: onTap,
         leading: Icon(
           Icons.warning,
-          color: alert.isActive ? Colors.red : Colors.green,
+          color: alert.status == AlertStatus.active ? Colors.red : Colors.green,
           size: 40,
         ),
         title: Text(
@@ -28,7 +28,7 @@ class AlertCard extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          "${alert.alertType} • ${alert.location}",
+          "${alert.type.name.toUpperCase()} • ${alert.location}",
         ),
         trailing: Text(
           _formatTime(alert.timestamp),
