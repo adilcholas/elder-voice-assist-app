@@ -1,10 +1,15 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 class BackgroundVoiceService {
   static final SpeechToText _speech = SpeechToText();
+
+  static const MethodChannel _channel = MethodChannel(
+    'elder_voice/background_service',
+  );
 
   static Future<void> initializeService() async {
     final service = FlutterBackgroundService();
@@ -77,17 +82,25 @@ class BackgroundVoiceService {
   }
 
   static Future<void> startService() async {
-    final service = FlutterBackgroundService();
-    await service.startService();
+    await _channel.invokeMethod("startService");
   }
 
   static Future<void> stopService() async {
-    final service = FlutterBackgroundService();
-
-    if (service is AndroidServiceInstance) {
-      service.invoke("stop_service");
-    }
-
-    await _speech.stop();
+    await _channel.invokeMethod("stopService");
   }
+
+  // static Future<void> startService() async {
+  //   final service = FlutterBackgroundService();
+  //   await service.startService();
+  // }
+
+  // static Future<void> stopService() async {
+  //   final service = FlutterBackgroundService();
+
+  //   if (service is AndroidServiceInstance) {
+  //     service.invoke("stop_service");
+  //   }
+
+  //   await _speech.stop();
+  // }
 }
