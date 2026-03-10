@@ -8,7 +8,9 @@ import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 
 class AlertDetailScreen extends StatelessWidget {
-  const AlertDetailScreen({super.key});
+  const AlertDetailScreen({required this.alertId, super.key});
+
+  final String alertId;
 
   @override
   Widget build(BuildContext context) {

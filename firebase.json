@@ -1,0 +1,41 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "elder-voice-assist",
+          "appId": "1:208805151552:android:b9620b5854c9068bf1b0a5",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "elder-voice-assist",
+          "configurations": {
+            "android": "1:208805151552:android:b9620b5854c9068bf1b0a5",
+            "ios": "1:208805151552:ios:199e639b46bf0069f1b0a5",
+            "web": "1:208805151552:web:758b628d5591fee9f1b0a5"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}
