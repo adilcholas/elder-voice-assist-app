@@ -1,9 +1,13 @@
+import 'package:elder_voice_assist/firebase_options.dart';
 import 'package:elder_voice_assist/providers/alert_provider.dart';
 import 'package:elder_voice_assist/providers/background_listener_provider.dart';
 import 'package:elder_voice_assist/providers/theme_provider.dart';
 import 'package:elder_voice_assist/providers/voice_provider.dart';
 import 'package:elder_voice_assist/services/background_voice_service.dart';
+import 'package:elder_voice_assist/services/firebase_service.dart';
+import 'package:elder_voice_assist/services/notification_service.dart';
 import 'package:elder_voice_assist/utils/app_theme.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -13,7 +17,16 @@ import 'utils/app_router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await FirebaseService.initialize();
+
+  await NotificationService().initialize();
+
   await BackgroundVoiceService.initializeService();
+
+  AppRouter.initializeNotifications();
+
   runApp(const MyApp());
 }
 

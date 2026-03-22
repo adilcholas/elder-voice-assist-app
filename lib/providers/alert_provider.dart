@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:elder_voice_assist/services/location_service.dart';
+import 'package:elder_voice_assist/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/alert_model.dart';
@@ -76,6 +77,22 @@ class AlertProvider extends ChangeNotifier {
     final encoded = _alerts.map((alert) => alert.toJson()).toList();
     await prefs.setStringList(_storageKey, encoded);
   }
+
+  Future<void> createAlert(AlertModel alert) async {
+
+  _alerts.insert(0, alert);
+
+  await _saveAlerts();
+
+  await NotificationService().showAlertNotification(
+    alertId: alert.id,
+    elderName: alert.elderName,
+    alertType: alert.type.name,
+    location: alert.location,
+  );
+
+  notifyListeners();
+}
 
   Future<void> _loadAlerts() async {
     final prefs = await SharedPreferences.getInstance();

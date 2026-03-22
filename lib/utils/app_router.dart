@@ -1,7 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:elder_voice_assist/services/notification_service.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-
 import '../screens/splash_screen.dart';
 import '../screens/role_selection_screen.dart';
 import '../screens/elder_home_screen.dart';
@@ -19,44 +17,41 @@ class AppRouter {
       initialLocation: '/',
       refreshListenable: roleProvider,
       redirect: (context, state) {
-  final role = roleProvider.role;
-  final location = state.matchedLocation;
+        final role = roleProvider.role;
+        final location = state.matchedLocation;
 
-  // If app opens at root, send to role selection
-  if (location == '/') {
-    return '/role-selection';
-  }
+        // If app opens at root, send to role selection
+        if (location == '/') {
+          return '/role-selection';
+        }
 
-  // Allow access to role selection always
-  if (location == '/role-selection') {
-    return null;
-  }
+        // Allow access to role selection always
+        if (location == '/role-selection') {
+          return null;
+        }
 
-  // If role not selected, block all routes except role selection
-  if (role == null) {
-    return '/role-selection';
-  }
+        // If role not selected, block all routes except role selection
+        if (role == null) {
+          return '/role-selection';
+        }
 
-  // Role-based protection
-  final isGoingToCaregiver = location.startsWith('/caregiver');
-  final isGoingToElder = location.startsWith('/elder');
+        // Role-based protection
+        final isGoingToCaregiver = location.startsWith('/caregiver');
+        final isGoingToElder = location.startsWith('/elder');
 
-  if (role == UserRole.elder && isGoingToCaregiver) {
-    return '/elder/home';
-  }
+        if (role == UserRole.elder && isGoingToCaregiver) {
+          return '/elder/home';
+        }
 
-  if (role == UserRole.caregiver && isGoingToElder) {
-    return '/caregiver/dashboard';
-  }
+        if (role == UserRole.caregiver && isGoingToElder) {
+          return '/caregiver/dashboard';
+        }
 
-  // No redirect needed
-  return null;
-},
+        // No redirect needed
+        return null;
+      },
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const SplashScreen(),
-        ),
+        GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
         GoRoute(
           path: '/role-selection',
           builder: (context, state) => const RoleSelectionScreen(),
@@ -83,7 +78,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/caregiver/alert-detail',
-          builder: (context, state) => const AlertDetailScreen(),
+          builder: (context, state) => const AlertDetailScreen(alertId: ''),
         ),
 
         /// COMMON
@@ -91,7 +86,21 @@ class AppRouter {
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
         ),
+
+        GoRoute(
+          path: '/alertDetail/:id',
+          builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return AlertDetailScreen(alertId: id);
+          },
+        ),
       ],
     );
+  }
+
+  static void initializeNotifications() {
+    NotificationService().onNotificationTap = (alertId) {
+      AppRouter.createRouter(RoleProvider()).push('/alertDetail/$alertId');
+    };
   }
 }

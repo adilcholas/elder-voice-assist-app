@@ -5,6 +5,7 @@
 <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 <uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
     
@@ -14,6 +15,9 @@
         android:usesCleartextTraffic="true"
         android:foregroundServiceType="microphone"
         >
+        <meta-data
+    android:name="com.google.firebase.messaging.default_notification_channel_id"
+    android:value="emergency_alerts"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

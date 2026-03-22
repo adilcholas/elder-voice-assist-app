@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "208805151552",
+    "project_id": "elder-voice-assist",
+    "storage_bucket": "elder-voice-assist.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:208805151552:android:b9620b5854c9068bf1b0a5",
+        "android_client_info": {
+          "package_name": "com.example.elder_voice_assist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDXDwMubkFjhLZSm7OwMqU_wUgQoIemuc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
