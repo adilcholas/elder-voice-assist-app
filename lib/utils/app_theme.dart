@@ -80,6 +80,23 @@ class AppTheme {
         AppColors.primary.withValues(alpha: 0.3),
       ),
     ),
+
+    /// ListTile (Spacious & Readable)
+    listTileTheme: ListTileThemeData(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      tileColor: AppColors.lightCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      iconColor: AppColors.primary,
+      titleTextStyle: const TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.w600,
+        color: AppColors.lightTextPrimary,
+      ),
+      subtitleTextStyle: const TextStyle(
+        fontSize: 16,
+        color: AppColors.lightTextSecondary,
+      ),
+    ),
   );
 
   /// 🌙 DARK THEME (Warm Dark — Not Harsh Black)
@@ -145,6 +162,24 @@ class AppTheme {
       ),
       bodyLarge: TextStyle(fontSize: 18, color: AppColors.darkTextPrimary),
       bodyMedium: TextStyle(fontSize: 16, color: AppColors.darkTextSecondary),
+    ),
+
+    /// ListTile (High Contrast & Soft Warmth)
+    listTileTheme: ListTileThemeData(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      tileColor: AppColors.darkCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      iconColor:
+          AppColors.secondary, // Using secondary for better dark-mode pop
+      titleTextStyle: const TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.w600,
+        color: AppColors.darkTextPrimary,
+      ),
+      subtitleTextStyle: const TextStyle(
+        fontSize: 16,
+        color: AppColors.darkTextSecondary,
+      ),
     ),
   );
 }
