@@ -1,32 +1,55 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
-import * as logger from "firebase-functions/logger";
+admin.initializeApp();
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+const db = admin.firestore();
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+export const notifyCaregivers = functions.firestore
+  .onDocumentCreated("alerts/{alertId}", async (event) => {
+    const snap = event.data;
+    if (!snap) return;
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+    const alert = snap.data();
+    if (!alert) return;
+
+    const elderId = alert.elderId;
+    const elderName = alert.elderName;
+    const alertType = alert.alertType;
+    const location = alert.location;
+
+    // Get elder document
+    const elderDoc = await db.collection("users").doc(elderId).get();
+    if (!elderDoc.exists) return;
+
+    const elderData = elderDoc.data();
+    const caregiverIds = elderData?.caregiverIds || [];
+    if (caregiverIds.length === 0) return;
+
+    const tokens: string[] = [];
+    // collect caregiver device tokens
+    for (const caregiverId of caregiverIds) {
+      const caregiverDoc = await db.collection("users")
+        .doc(caregiverId)
+        .get();
+
+      const token = caregiverDoc.data()?.deviceToken;
+      if (token) tokens.push(token);
+    }
+
+    if (tokens.length === 0) return;
+
+    const payload = {
+      data: {
+        alertId: event.params.alertId,
+        elderName: elderName,
+        alertType: alertType,
+        location: location,
+      },
+    };
+
+    await admin.messaging().sendEachForMulticast({
+      tokens: tokens,
+      data: payload.data,
+    });
+  });

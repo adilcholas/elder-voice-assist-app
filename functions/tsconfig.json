@@ -8,7 +8,15 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2017",
+    // avoid type errors from dependencies and newer node types
+    "skipLibCheck": true,
+    "lib": [
+      "es2017"
+    ],
+    "types": [
+      "node"
+    ]
   },
   "compileOnSave": true,
   "include": [

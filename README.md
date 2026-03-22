@@ -22,3 +22,10 @@ See [docs/setup.md](docs/setup.md)
 - Week 2: [Link to milestone]
 - Week 3: [Link to milestone]
 - Week 4: [Link to milestone]
+
+    "lint": "eslint --ext .js,.ts .",
+
+
+    // "eslint": "^8.9.0",
+    // "eslint-config-google": "^0.14.0",
+    // "eslint-plugin-import": "^2.25.4",

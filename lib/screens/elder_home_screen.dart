@@ -20,7 +20,7 @@ class ElderHomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => context.go('/settings'),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -43,7 +43,7 @@ class ElderHomeScreen extends StatelessWidget {
                 onPressed: () async {
                   await alertProvider.triggerEmergency(elderName: "Elder User");
 
-                  context.go('/elder/emergency');
+                  context.push('/elder/emergency');
                 },
               ),
             ),
@@ -57,7 +57,7 @@ class ElderHomeScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.mic, size: 28),
                 label: const Text("Start Voice Assistant"),
-                onPressed: () => context.go('/elder/voice'),
+                onPressed: () => context.push('/elder/voice'),
               ),
             ),
 

@@ -1,6 +1,8 @@
 package com.example.elder_voice_assist
 
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine   
+import io.flutter.plugin.common.EventChannel       
 
 class MainActivity: FlutterActivity() {
 

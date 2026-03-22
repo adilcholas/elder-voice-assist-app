@@ -107,7 +107,7 @@ class EmergencyAlertScreen extends StatelessWidget {
                       if (activeAlerts.isNotEmpty) {
                         alertProvider.resolveAlert(activeAlerts.first.id);
                       }
-                      context.go('/elder/home');
+                      context.push('/elder/home');
                     },
                     child: const Text(
                       "I am Safe Now",
@@ -121,7 +121,7 @@ class EmergencyAlertScreen extends StatelessWidget {
                 /// Secondary Action
                 TextButton(
                   onPressed: () {
-                    context.go('/elder/home');
+                    context.push('/elder/home');
                   },
                   child: const Text("Return to Home"),
                 ),

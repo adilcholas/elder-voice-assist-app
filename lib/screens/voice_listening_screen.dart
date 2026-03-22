@@ -19,7 +19,7 @@ class VoiceListeningScreen extends StatelessWidget {
     /// Auto navigate to emergency when help detected
     if (voiceProvider.state == VoiceState.detectedHelp) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go('/elder/emergency');
+        context.push('/elder/emergency');
       });
     }
 

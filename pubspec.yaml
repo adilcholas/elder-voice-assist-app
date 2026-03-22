@@ -14,8 +14,8 @@ dependencies:
   firebase_auth: 
   cloud_firestore: 
   firebase_messaging: 
-  speech_to_text: 
-  flutter_tts: 
+  speech_to_text: 7.3.0
+  flutter_tts: 4.2.5
   geolocator: 
   permission_handler: 
   provider: 

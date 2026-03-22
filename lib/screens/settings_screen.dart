@@ -26,8 +26,8 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Settings")),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          // crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// HEADER
             Text("App Preferences", style: AppTypography.heading),
@@ -133,7 +133,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onTap: () {
                   roleProvider.clearRole();
-                  context.go('/role-selection');
+                  context.push('/role-selection');
                 },
               ),
             ),
@@ -159,6 +159,7 @@ class SettingsScreen extends StatelessWidget {
                 },
               ),
             ),
+            const SizedBox(height: AppSpacing.md),
 
             /// Background Emergency Listening (CRITICAL FEATURE)
             SwitchListTile(
@@ -191,8 +192,8 @@ class SettingsScreen extends StatelessWidget {
                 }
               },
             ),
-
-            const Spacer(),
+            const SizedBox(height: AppSpacing.md),
+            // const Spacer(),
 
             /// APP INFO (PRODUCTION FOOTER)
             Center(
@@ -223,16 +224,18 @@ class SettingsScreen extends StatelessWidget {
 /// REUSABLE HIGH-FIDELITY CARD (Design System Compliant)
 class _SettingsCard extends StatelessWidget {
   final Widget child;
-
   const _SettingsCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context); // Access current theme
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.lightCard,
+        color: theme.cardTheme.color, // Uses AppColors.lightCard or darkCard
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+        ),
       ),
       child: child,
     );
