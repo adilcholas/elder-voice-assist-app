@@ -1,4 +1,4 @@
-package com.example.app
+package com.example.elder_voice_assist
 
 import android.app.Service
 import android.content.Intent
