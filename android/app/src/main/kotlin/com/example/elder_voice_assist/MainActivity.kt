@@ -6,7 +6,7 @@ import io.flutter.plugin.common.EventChannel
 
 class MainActivity: FlutterActivity() {
 
-    private val CHANNEL = "elder_voice/background_events"
+    private val CHANNEL = "voice_service"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -15,11 +15,13 @@ class MainActivity: FlutterActivity() {
             .setStreamHandler(object : EventChannel.StreamHandler {
 
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    VoiceForegroundService.eventSink = events
+                    val intent = Intent(this@MainActivity, VoiceForegroundService::class.java)
+                    startService(intent)
                 }
 
                 override fun onCancel(arguments: Any?) {
-                    VoiceForegroundService.eventSink = null
+                    val intent = Intent(this@MainActivity, VoiceForegroundService::class.java)
+                    stopService(intent)
                 }
             })
     }
