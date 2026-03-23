@@ -1,44 +1,126 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../models/voice_state.dart';
 import 'alert_provider.dart';
 
 class VoiceProvider extends ChangeNotifier {
+  final SpeechToText _speech = SpeechToText();
+
   VoiceState _state = VoiceState.idle;
   VoiceState get state => _state;
 
-  Timer? _listeningTimer;
+  String _lastWords = '';
+  String get lastWords => _lastWords;
 
-  void startListening(BuildContext context, AlertProvider alertProvider) {
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
+
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
+  Future<bool> _initSpeech() async {
+    if (_isInitialized) return true;
+    _isInitialized = await _speech.initialize(
+      onError: (error) {
+        _errorMessage = error.errorMsg;
+        _state = VoiceState.idle;
+        notifyListeners();
+      },
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (_state == VoiceState.listening) {
+            _state = VoiceState.idle;
+            notifyListeners();
+          }
+        }
+      },
+    );
+    return _isInitialized;
+  }
+
+  Future<void> startListening(
+    BuildContext context,
+    AlertProvider alertProvider, {
+    String elderName = 'Elder User',
+  }) async {
+    _errorMessage = null;
+    final available = await _initSpeech();
+
+    if (!available) {
+      _errorMessage = 'Speech recognition not available on this device.';
+      notifyListeners();
+      return;
+    }
+
     _state = VoiceState.listening;
+    _lastWords = '';
     notifyListeners();
 
-    /// Simulate voice detection delay (MVP)
-    _listeningTimer?.cancel();
-    _listeningTimer = Timer(const Duration(seconds: 4), () {
-      _detectHelp(context, alertProvider);
-    });
+    await _speech.listen(
+      onResult: (result) async {
+        _lastWords = result.recognizedWords;
+        notifyListeners();
+
+        if (_state != VoiceState.listening) return;
+
+        final words = result.recognizedWords.toLowerCase();
+        if (_containsDistressKeywords(words)) {
+          await _detectHelp(alertProvider, elderName: elderName);
+        }
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 5),
+      listenOptions: SpeechListenOptions(
+        cancelOnError: false,
+        partialResults: true,
+        onDevice: false,
+      ),
+    );
+  }
+
+  bool _containsDistressKeywords(String words) {
+    const keywords = [
+      'help',
+      'help me',
+      'emergency',
+      'save me',
+      'call ambulance',
+      'i fell',
+    ];
+    return keywords.any((kw) => words.contains(kw));
   }
 
   Future<void> _detectHelp(
-    BuildContext context,
-    AlertProvider alertProvider,
-  ) async {
+    AlertProvider alertProvider, {
+    String elderName = 'Elder User',
+  }) async {
+    if (_state == VoiceState.detectedHelp) return;
+
     _state = VoiceState.detectedHelp;
     notifyListeners();
 
-    await alertProvider.triggerEmergency(elderName: "Elder User");
+    await _speech.stop();
+    await alertProvider.triggerEmergency(elderName: elderName);
   }
 
   void stopListening() {
-    _listeningTimer?.cancel();
+    _speech.stop();
     _state = VoiceState.idle;
+    _lastWords = '';
+    notifyListeners();
+  }
+
+  void resetState() {
+    _state = VoiceState.idle;
+    _lastWords = '';
+    _errorMessage = null;
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _listeningTimer?.cancel();
+    _speech.cancel();
     super.dispose();
   }
 }

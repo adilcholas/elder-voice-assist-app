@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-enum AlertStatus { active, acknowledged, resolved }
+enum AlertStatus { active, acknowledged, resolved, escalated }
 
-enum AlertType { emergency, voiceDistress, medicationMissed }
+enum AlertType { emergency, voiceDistress, medicationMissed, fallDetected }
 
 class AlertModel {
   final String id;
@@ -11,6 +11,9 @@ class AlertModel {
   final DateTime timestamp;
   final String location;
   AlertStatus status;
+  DateTime? acknowledgedAt;
+  bool escalatedToEmergencyServices;
+  final String? notes;
 
   AlertModel({
     required this.id,
@@ -19,6 +22,9 @@ class AlertModel {
     required this.timestamp,
     required this.location,
     this.status = AlertStatus.active,
+    this.acknowledgedAt,
+    this.escalatedToEmergencyServices = false,
+    this.notes,
   });
 
   /// Convert to Map for persistence
@@ -30,6 +36,9 @@ class AlertModel {
       'timestamp': timestamp.toIso8601String(),
       'location': location,
       'status': status.name,
+      'acknowledgedAt': acknowledgedAt?.toIso8601String(),
+      'escalatedToEmergencyServices': escalatedToEmergencyServices,
+      'notes': notes,
     };
   }
 
@@ -38,10 +47,22 @@ class AlertModel {
     return AlertModel(
       id: map['id'],
       elderName: map['elderName'],
-      type: AlertType.values.firstWhere((e) => e.name == map['type']),
+      type: AlertType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => AlertType.emergency,
+      ),
       timestamp: DateTime.parse(map['timestamp']),
-      location: map['location'],
-      status: AlertStatus.values.firstWhere((e) => e.name == map['status']),
+      location: map['location'] ?? 'Unknown',
+      status: AlertStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => AlertStatus.active,
+      ),
+      acknowledgedAt: map['acknowledgedAt'] != null
+          ? DateTime.tryParse(map['acknowledgedAt'])
+          : null,
+      escalatedToEmergencyServices:
+          map['escalatedToEmergencyServices'] as bool? ?? false,
+      notes: map['notes'],
     );
   }
 
@@ -51,4 +72,24 @@ class AlertModel {
   /// Decode from JSON
   factory AlertModel.fromJson(String source) =>
       AlertModel.fromMap(jsonDecode(source));
+
+  AlertModel copyWith({
+    AlertStatus? status,
+    DateTime? acknowledgedAt,
+    bool? escalatedToEmergencyServices,
+    String? notes,
+  }) {
+    return AlertModel(
+      id: id,
+      elderName: elderName,
+      type: type,
+      timestamp: timestamp,
+      location: location,
+      status: status ?? this.status,
+      acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+      escalatedToEmergencyServices:
+          escalatedToEmergencyServices ?? this.escalatedToEmergencyServices,
+      notes: notes ?? this.notes,
+    );
+  }
 }

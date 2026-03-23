@@ -19,7 +19,7 @@ class StatusChip extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
-        status.name.toUpperCase(),
+        _getLabel(status),
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w600,
@@ -37,6 +37,21 @@ class StatusChip extends StatelessWidget {
         return AppColors.warning;
       case AlertStatus.resolved:
         return AppColors.success;
+      case AlertStatus.escalated:
+        return Colors.deepOrange;
+    }
+  }
+
+  String _getLabel(AlertStatus status) {
+    switch (status) {
+      case AlertStatus.active:
+        return 'ACTIVE';
+      case AlertStatus.acknowledged:
+        return 'ACKNOWLEDGED';
+      case AlertStatus.resolved:
+        return 'RESOLVED';
+      case AlertStatus.escalated:
+        return 'ESCALATED';
     }
   }
 }

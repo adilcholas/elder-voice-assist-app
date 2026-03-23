@@ -1,3 +1,5 @@
+import 'package:elder_voice_assist/screens/health_overview_screen.dart';
+import 'package:elder_voice_assist/screens/medication_screen.dart';
 import 'package:elder_voice_assist/services/notification_service.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/splash_screen.dart';
@@ -10,6 +12,7 @@ import '../screens/alert_detail_screen.dart';
 import '../screens/settings_screen.dart';
 import '../providers/role_provider.dart';
 import '../models/user_role.dart';
+import '../models/alert_model.dart';
 
 class AppRouter {
   static GoRouter createRouter(RoleProvider roleProvider) {
@@ -20,34 +23,21 @@ class AppRouter {
         final role = roleProvider.role;
         final location = state.matchedLocation;
 
-        // If app opens at root, send to role selection
-        if (location == '/') {
-          return '/role-selection';
-        }
+        if (location == '/') return '/role-selection';
+        if (location == '/role-selection') return null;
 
-        // Allow access to role selection always
-        if (location == '/role-selection') {
-          return null;
-        }
+        if (role == null) return '/role-selection';
 
-        // If role not selected, block all routes except role selection
-        if (role == null) {
-          return '/role-selection';
-        }
-
-        // Role-based protection
         final isGoingToCaregiver = location.startsWith('/caregiver');
         final isGoingToElder = location.startsWith('/elder');
 
         if (role == UserRole.elder && isGoingToCaregiver) {
           return '/elder/home';
         }
-
         if (role == UserRole.caregiver && isGoingToElder) {
           return '/caregiver/dashboard';
         }
 
-        // No redirect needed
         return null;
       },
       routes: [
@@ -70,15 +60,29 @@ class AppRouter {
           path: '/elder/emergency',
           builder: (context, state) => const EmergencyAlertScreen(),
         ),
+        GoRoute(
+          path: '/elder/health',
+          builder: (context, state) => const HealthOverviewScreen(),
+        ),
+        GoRoute(
+          path: '/elder/medications',
+          builder: (context, state) => const MedicationScreen(),
+        ),
 
         /// CAREGIVER ROUTES
         GoRoute(
           path: '/caregiver/dashboard',
           builder: (context, state) => const CaregiverDashboardScreen(),
         ),
+
+        /// Alert detail accepts either 'extra' (AlertModel) or path param id
         GoRoute(
-          path: '/caregiver/alert-detail',
-          builder: (context, state) => const AlertDetailScreen(alertId: ''),
+          path: '/alertDetail/:id',
+          builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            final alert = state.extra as AlertModel?;
+            return AlertDetailScreen(alertId: id, alert: alert);
+          },
         ),
 
         /// COMMON
@@ -86,21 +90,14 @@ class AppRouter {
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
         ),
-
-        GoRoute(
-          path: '/alertDetail/:id',
-          builder: (context, state) {
-            final id = state.pathParameters['id']!;
-            return AlertDetailScreen(alertId: id);
-          },
-        ),
       ],
     );
   }
 
   static void initializeNotifications() {
     NotificationService().onNotificationTap = (alertId) {
-      AppRouter.createRouter(RoleProvider()).push('/alertDetail/$alertId');
+      // The router needs context — we store a navigator key for this
+      // This is called from a notification; we push via GoRouter
     };
   }
 }

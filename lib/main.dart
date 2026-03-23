@@ -1,6 +1,7 @@
 import 'package:elder_voice_assist/firebase_options.dart';
 import 'package:elder_voice_assist/providers/alert_provider.dart';
 import 'package:elder_voice_assist/providers/background_listener_provider.dart';
+import 'package:elder_voice_assist/providers/medication_provider.dart';
 import 'package:elder_voice_assist/providers/theme_provider.dart';
 import 'package:elder_voice_assist/providers/voice_provider.dart';
 import 'package:elder_voice_assist/services/background_voice_service.dart';
@@ -41,10 +42,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => VoiceProvider()),
         ChangeNotifierProvider(create: (_) => BackgroundListenerProvider()),
+        ChangeNotifierProvider(create: (_) => MedicationProvider()),
         ChangeNotifierProvider(
           create: (_) {
             final provider = AlertProvider();
-            provider.initialize(); // ⭐ LOAD SAVED ALERTS ON START
+            provider.initialize();
             return provider;
           },
         ),
@@ -80,7 +82,7 @@ class _AppViewState extends State<AppView> {
       routerConfig: _router,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode, // ⭐ KEY LINE
+      themeMode: themeProvider.themeMode,
     );
   }
 }

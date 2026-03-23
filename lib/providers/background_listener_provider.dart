@@ -9,12 +9,15 @@ class BackgroundListenerProvider extends ChangeNotifier {
 
   StreamSubscription? _subscription;
 
-  void startListening(AlertProvider alertProvider) {
+  /// [elderName] - the elder's actual name from RoleProvider
+  void startListening(
+    AlertProvider alertProvider, {
+    String elderName = 'Elder User',
+  }) {
+    _subscription?.cancel();
     _subscription = BackgroundEventChannel.events.listen((event) async {
-      if (event == "emergency_detected") {
-        await alertProvider.triggerEmergency(
-          elderName: "Elder User (Background)",
-        );
+      if (event == 'emergency_detected') {
+        await alertProvider.triggerEmergency(elderName: elderName);
       }
     });
 

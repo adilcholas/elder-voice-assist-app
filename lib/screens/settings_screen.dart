@@ -12,8 +12,47 @@ import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
 import '../utils/app_colors.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  late TextEditingController _caregiverPhoneController;
+
+  @override
+  void initState() {
+    super.initState();
+    final rp = context.read<RoleProvider>();
+    _nameController = TextEditingController(text: rp.userName);
+    _phoneController = TextEditingController(text: rp.userPhone);
+    _caregiverPhoneController = TextEditingController(text: rp.caregiverPhone);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _caregiverPhoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    await context.read<RoleProvider>().updateProfile(
+      name: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      caregiverPhone: _caregiverPhoneController.text.trim(),
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile saved')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,83 +62,139 @@ class SettingsScreen extends StatelessWidget {
     final bgListenerProvider = context.watch<BackgroundListenerProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
-      body: Padding(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: ListView(
-          // crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// HEADER
-            Text("App Preferences", style: AppTypography.heading),
-            const SizedBox(height: AppSpacing.lg),
+        children: [
+          Text('App Preferences', style: AppTypography.heading),
+          const SizedBox(height: AppSpacing.lg),
 
-            /// CURRENT ROLE CARD (High-Fidelity)
-            _SettingsCard(
-              child: ListTile(
-                leading: const Icon(Icons.person_outline, size: 28),
-                title: const Text(
-                  "Current Role",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          /// CURRENT ROLE CARD
+          _SettingsCard(
+            child: ListTile(
+              leading: const Icon(Icons.person_outline, size: 28),
+              title: const Text(
+                'Current Role',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                roleProvider.isElder
+                    ? 'Elder Mode (Voice Assistance Enabled)'
+                    : roleProvider.isCaregiver
+                    ? 'Caregiver Mode (Monitoring Dashboard)'
+                    : 'Not Selected',
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-                subtitle: Text(
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
                   roleProvider.isElder
-                      ? "Elder Mode (Voice Assistance Enabled)"
+                      ? 'ELDER'
                       : roleProvider.isCaregiver
-                      ? "Caregiver Mode (Monitoring Dashboard)"
-                      : "Not Selected",
+                      ? 'CAREGIVER'
+                      : 'NONE',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          /// PROFILE SECTION
+          _SettingsCard(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.manage_accounts_outlined,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Profile',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
+                  const SizedBox(height: AppSpacing.md),
+                  _profileField('Your Name', _nameController, Icons.person),
+                  const SizedBox(height: AppSpacing.sm),
+                  _profileField(
+                    'Your Phone',
+                    _phoneController,
+                    Icons.phone,
+                    keyboardType: TextInputType.phone,
                   ),
-                  child: Text(
+                  const SizedBox(height: AppSpacing.sm),
+                  _profileField(
                     roleProvider.isElder
-                        ? "ELDER"
-                        : roleProvider.isCaregiver
-                        ? "CAREGIVER"
-                        : "NONE",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                        ? 'Caregiver Phone'
+                        : 'Emergency Contact Phone',
+                    _caregiverPhoneController,
+                    Icons.contact_phone,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 50),
+                      ),
+                      child: const Text('Save Profile'),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
+          ),
 
-            const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
 
-            /// THEME TOGGLE (Production Integration)
-            _SettingsCard(
-              child: SwitchListTile(
-                secondary: const Icon(Icons.dark_mode_outlined, size: 28),
-                title: const Text(
-                  "Dark Theme",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text(
-                  "Warm dark theme for better night visibility",
-                ),
-                value: themeProvider.isDarkMode,
-                onChanged: (value) {
-                  themeProvider.toggleTheme(value);
-                },
+          /// DARK THEME TOGGLE
+          _SettingsCard(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.dark_mode_outlined, size: 28),
+              title: const Text(
+                'Dark Theme',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
+              subtitle: const Text(
+                'Warm dark theme for better night visibility',
+              ),
+              value: themeProvider.isDarkMode,
+              onChanged: (value) => themeProvider.toggleTheme(value),
             ),
+          ),
 
-            const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
 
-            /// BACKGROUND EMERGENCY LISTENING (CRITICAL FEATURE)
+          /// BACKGROUND EMERGENCY LISTENING (only for elders)
+          if (roleProvider.isElder)
             _SettingsCard(
               child: SwitchListTile(
                 secondary: const Icon(Icons.mic_none_rounded, size: 28),
                 title: const Text(
-                  "Background Emergency Listening",
+                  'Background Emergency Listening',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 subtitle: const Text(
@@ -107,9 +202,21 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 value: bgListenerProvider.isRunning,
                 onChanged: (value) async {
+                  final messenger = ScaffoldMessenger.of(context);
                   if (value) {
-                    await BackgroundVoiceService.startService();
-                    bgListenerProvider.startListening(alertProvider);
+                    final micPermission = await Permission.microphone.request();
+                    if (micPermission.isGranted) {
+                      await BackgroundVoiceService.startService();
+                      bgListenerProvider.startListening(alertProvider);
+                    } else {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Microphone permission is required for voice detection',
+                          ),
+                        ),
+                      );
+                    }
                   } else {
                     await BackgroundVoiceService.stopService();
                     bgListenerProvider.stopListening();
@@ -118,120 +225,136 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.md),
+          if (roleProvider.isElder) const SizedBox(height: AppSpacing.md),
 
-            /// CHANGE ROLE (Safe Navigation)
-            _SettingsCard(
-              child: ListTile(
-                leading: const Icon(Icons.switch_account_outlined, size: 28),
-                title: const Text(
-                  "Change Role",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text(
-                  "Switch between Elder and Caregiver modes",
-                ),
-                onTap: () {
-                  roleProvider.clearRole();
-                  context.push('/role-selection');
-                },
+          /// CHANGE ROLE
+          _SettingsCard(
+            child: ListTile(
+              leading: const Icon(Icons.switch_account_outlined, size: 28),
+              title: const Text(
+                'Change Role',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
+              subtitle: const Text('Switch between Elder and Caregiver modes'),
+              onTap: () {
+                roleProvider.clearRole();
+                context.go('/role-selection');
+              },
             ),
+          ),
 
-            const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
 
-            /// CLEAR ALERT HISTORY (ADMIN SAFETY TOOL)
-            _SettingsCard(
-              child: ListTile(
-                leading: const Icon(Icons.delete_outline, size: 28),
-                title: const Text(
-                  "Clear Alert History",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text("Remove all stored emergency alerts"),
-                onTap: () async {
+          /// CLEAR ALERT HISTORY
+          _SettingsCard(
+            child: ListTile(
+              leading: const Icon(Icons.delete_outline, size: 28),
+              title: const Text(
+                'Clear Alert History',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('Remove all stored emergency alerts'),
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final confirmed = await _confirmDialog(
+                  context,
+                  'Clear all alerts?',
+                  'This cannot be undone.',
+                );
+                if (confirmed == true) {
                   await alertProvider.clearAllAlerts();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Alert history cleared")),
-                    );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            /// Background Emergency Listening (CRITICAL FEATURE)
-            SwitchListTile(
-              secondary: const Icon(Icons.mic_none_rounded),
-              title: const Text("Background Emergency Listening"),
-              subtitle: const Text("Detect 'Help' even when app is minimized"),
-              value: bgListenerProvider.isRunning,
-              onChanged: (value) async {
-                if (value) {
-                  /// Request microphone permission FIRST (MANDATORY)
-                  final micPermission = await Permission.microphone.request();
-
-                  if (micPermission.isGranted) {
-                    await BackgroundVoiceService.startService();
-                    bgListenerProvider.startListening(alertProvider);
-                  } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            "Microphone permission is required for voice detection",
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                } else {
-                  await BackgroundVoiceService.stopService();
-                  bgListenerProvider.stopListening();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Alert history cleared')),
+                  );
                 }
               },
             ),
-            const SizedBox(height: AppSpacing.md),
-            // const Spacer(),
+          ),
 
-            /// APP INFO (PRODUCTION FOOTER)
-            Center(
-              child: Column(
-                children: const [
-                  Text(
-                    "Aura - Elder Voice Assist",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          const SizedBox(height: AppSpacing.xxl),
+
+          /// APP INFO
+          Center(
+            child: Column(
+              children: const [
+                Text(
+                  'Aura - Elder Voice Assist',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Version 1.0 • Safety Assistant',
+                  style: TextStyle(
+                    color: AppColors.lightTextSecondary,
+                    fontSize: 13,
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    "Version 1.0 • Safety Assistant",
-                    style: TextStyle(
-                      color: AppColors.lightTextSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
         ),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmDialog(
+    BuildContext context,
+    String title,
+    String message,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// REUSABLE HIGH-FIDELITY CARD (Design System Compliant)
 class _SettingsCard extends StatelessWidget {
   final Widget child;
   const _SettingsCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); // Access current theme
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardTheme.color, // Uses AppColors.lightCard or darkCard
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: theme.colorScheme.secondary.withValues(alpha: 0.2),

@@ -9,9 +9,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  // Color constants provided for the brand
-  static const Color primary = Color(0xFFE76F51); // Warm terracotta
-
   @override
   void initState() {
     super.initState();

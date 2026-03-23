@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
-import '../utils/app_radius.dart';
 import '../utils/app_typography.dart';
 
 class EmergencyButton extends StatelessWidget {

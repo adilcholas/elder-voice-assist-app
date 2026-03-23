@@ -43,7 +43,7 @@ class PriorityAlertCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            /// Priority Indicator (Visual Hierarchy)
+            /// Priority Indicator
             Container(
               width: 10,
               height: 70,
@@ -60,20 +60,13 @@ class PriorityAlertCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// Elder Name
                   Text(alert.elderName, style: AppTypography.title),
-
                   const SizedBox(height: 6),
-
-                  /// Alert Type
                   Text(
-                    alert.type.name.toUpperCase(),
+                    alert.type.name.toUpperCase().replaceAll('_', ' '),
                     style: AppTypography.body,
                   ),
-
                   const SizedBox(height: 6),
-
-                  /// Location
                   Text(
                     alert.location,
                     style: const TextStyle(
@@ -81,13 +74,33 @@ class PriorityAlertCard extends StatelessWidget {
                       color: AppColors.lightTextSecondary,
                     ),
                   ),
+                  if (alert.escalatedToEmergencyServices) ...[
+                    const SizedBox(height: 4),
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.local_hospital,
+                          color: Colors.deepOrange,
+                          size: 16,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Escalated to Emergency Services',
+                          style: TextStyle(
+                            color: Colors.deepOrange,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
 
             const SizedBox(width: AppSpacing.sm),
 
-            /// Right Section (Time + Status)
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -113,10 +126,12 @@ class PriorityAlertCard extends StatelessWidget {
         return AppColors.warning;
       case AlertStatus.resolved:
         return AppColors.success;
+      case AlertStatus.escalated:
+        return Colors.deepOrange;
     }
   }
 
   String _formatTime(DateTime time) {
-    return "${time.hour}:${time.minute.toString().padLeft(2, '0')}";
+    return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
   }
 }
