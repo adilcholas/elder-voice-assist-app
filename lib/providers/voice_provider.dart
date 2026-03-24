@@ -92,12 +92,33 @@ class VoiceProvider extends ChangeNotifier {
 
   bool _containsDistressKeywords(String words) {
     const keywords = [
+      // English
       'help',
       'help me',
       'emergency',
       'save me',
       'call ambulance',
       'i fell',
+      // Hindi (Romanized)
+      'bachao',
+      'madad',
+      'gir gaya',
+      'gir gayi',
+      // Hindi (Devanagari)
+      'बचाओ',
+      'मदद',
+      'गिर गया',
+      'गिर गई',
+      // Malayalam (Romanized)
+      'sahayam',
+      'sahayikku',
+      'rakshikku',
+      'veenu',
+      // Malayalam (Script)
+      'സഹായം',
+      'സഹായിക്കൂ',
+      'രക്ഷിക്കൂ',
+      'വീണു',
     ];
     return keywords.any((kw) => words.contains(kw));
   }
@@ -118,6 +139,7 @@ class VoiceProvider extends ChangeNotifier {
 
   bool _containsCallKeywords(String words) {
     const keywords = [
+      // English
       'call my son',
       'call my daughter',
       'call my caregiver',
@@ -125,6 +147,34 @@ class VoiceProvider extends ChangeNotifier {
       'make a call',
       'call family',
       'call friend',
+      // Hindi (Romanized)
+      'call karo',
+      'phone karo',
+      'phone lagao',
+      'mere beta ka call karo',
+      'mere bete ko call karo',
+      'beti ko call karo',
+      'beta ko call karo',
+      // Hindi (Devanagari)
+      'कॉल करो',
+      'फोन करो',
+      'फोन लगाओ',
+      'कॉल लगाओ',
+      'मेरे बेटे को कॉल करो',
+      'बेटा को कॉल करो',
+      'बेटी को कॉल करो',
+      // Malayalam (Romanized)
+      'vilikku',
+      'phone cheyyu',
+      'makkale vilikku',
+      'mone vilikku',
+      'mole vilikku',
+      // Malayalam (Script)
+      'വിളിക്കൂ',
+      'ഫോൺ ചെയ്യൂ',
+      'മകനെ വിളിക്കൂ',
+      'മകളെ വിളിക്കൂ',
+      'വിളിക്കുക',
     ];
     return keywords.any((kw) => words.contains(kw)) || words == 'call';
   }
