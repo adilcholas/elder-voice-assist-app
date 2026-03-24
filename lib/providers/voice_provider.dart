@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../models/voice_state.dart';
 import 'alert_provider.dart';
 
 class VoiceProvider extends ChangeNotifier {
   final SpeechToText _speech = SpeechToText();
+  final FlutterTts _tts = FlutterTts();
 
   VoiceState _state = VoiceState.idle;
   VoiceState get state => _state;
@@ -57,6 +59,8 @@ class VoiceProvider extends ChangeNotifier {
     _lastWords = '';
     notifyListeners();
 
+    await _tts.speak('Voice assistant activated. Say help if you need assistance.');
+
     await _speech.listen(
       onResult: (result) async {
         _lastWords = result.recognizedWords;
@@ -101,11 +105,13 @@ class VoiceProvider extends ChangeNotifier {
     notifyListeners();
 
     await _speech.stop();
+    await _tts.speak('Help detected. Contacting your caregiver now.');
     await alertProvider.triggerEmergency(elderName: elderName);
   }
 
   void stopListening() {
     _speech.stop();
+    _tts.stop();
     _state = VoiceState.idle;
     _lastWords = '';
     notifyListeners();

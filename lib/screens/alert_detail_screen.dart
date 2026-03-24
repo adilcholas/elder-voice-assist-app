@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/alert_model.dart';
 import '../providers/alert_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../providers/role_provider.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
@@ -196,13 +199,45 @@ class AlertDetailScreen extends StatelessWidget {
               child: TextButton.icon(
                 icon: const Icon(Icons.call),
                 label: const Text('Call Elder', style: TextStyle(fontSize: 18)),
-                onPressed: () {
-                  // TODO: Integrate dialing via url_launcher
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Dialing feature coming soon.'),
-                    ),
-                  );
+                onPressed: () async {
+                  final profile = context.read<RoleProvider>().profile;
+                  if (profile?.linkedUserId != null) {
+                    try {
+                      final doc = await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(profile!.linkedUserId)
+                          .get();
+                      final phone = doc.data()?['phone'] as String?;
+                      if (phone != null && phone.isNotEmpty) {
+                        final uri = Uri.parse('tel:$phone');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Could not launch dialer.')),
+                            );
+                          }
+                        }
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Elder phone number not found.')),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to fetch Elder number.')),
+                        );
+                      }
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No Elder linked.')),
+                    );
+                  }
                 },
               ),
             ),

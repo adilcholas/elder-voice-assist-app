@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/medication_model.dart';
+import '../services/notification_service.dart';
 
 class MedicationProvider extends ChangeNotifier {
   static const String _storageKey = 'medications';
@@ -72,10 +73,36 @@ class MedicationProvider extends ChangeNotifier {
     }
   }
 
+  final Set<String> _notifiedDueKeys = {};
+
   /// Check overdue and notify every minute
   void _startReminderTimer() {
     _reminderTimer?.cancel();
     _reminderTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      for (final med in _medications) {
+        if (med.isActive && med.isDueNow && !med.isOverdue && med.nextDue != null) {
+          final alertKey = '${med.id}_${med.nextDue!.millisecondsSinceEpoch}';
+          if (!_notifiedDueKeys.contains(alertKey)) {
+            _notifiedDueKeys.add(alertKey);
+            
+            // Format time for notification
+            final h = med.nextDue!.hour % 12 == 0 ? 12 : med.nextDue!.hour % 12;
+            final suffix = med.nextDue!.hour < 12 ? 'AM' : 'PM';
+            final formattedTime = '$h:${med.nextDue!.minute.toString().padLeft(2, '0')} $suffix';
+            
+            // Try to trigger Local Notification
+            try {
+              NotificationService().showMedicationReminder(
+                medicationName: med.name,
+                dosage: med.dosage,
+                scheduledTime: formattedTime,
+              );
+            } catch (e) {
+              // Ignore failure for notification call structure if importing fails
+            }
+          }
+        }
+      }
       notifyListeners(); // Triggers due/overdue recalculation
     });
   }
