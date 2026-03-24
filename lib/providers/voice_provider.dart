@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/voice_state.dart';
 import 'alert_provider.dart';
+import 'role_provider.dart';
 
 class VoiceProvider extends ChangeNotifier {
   final SpeechToText _speech = SpeechToText();
@@ -45,6 +47,7 @@ class VoiceProvider extends ChangeNotifier {
     BuildContext context,
     AlertProvider alertProvider, {
     String elderName = 'Elder User',
+    RoleProvider? roleProvider,
   }) async {
     _errorMessage = null;
     final available = await _initSpeech();
@@ -71,6 +74,8 @@ class VoiceProvider extends ChangeNotifier {
         final words = result.recognizedWords.toLowerCase();
         if (_containsDistressKeywords(words)) {
           await _detectHelp(alertProvider, elderName: elderName);
+        } else if (_containsCallKeywords(words)) {
+          await _detectCall(roleProvider);
         }
       },
       listenFor: const Duration(seconds: 30),
@@ -107,6 +112,40 @@ class VoiceProvider extends ChangeNotifier {
     await _speech.stop();
     await _tts.speak('Help detected. Contacting your caregiver now.');
     await alertProvider.triggerEmergency(elderName: elderName);
+  }
+
+  bool _containsCallKeywords(String words) {
+    const keywords = [
+      'call my son',
+      'call my daughter',
+      'call my caregiver',
+      'call caregiver',
+      'make a call',
+      'call family',
+      'call friend',
+    ];
+    return keywords.any((kw) => words.contains(kw)) || words == 'call';
+  }
+
+  Future<void> _detectCall(RoleProvider? roleProvider) async {
+    if (_state == VoiceState.detectedCall || _state == VoiceState.detectedHelp) return;
+
+    _state = VoiceState.detectedCall;
+    notifyListeners();
+
+    await _speech.stop();
+
+    if (roleProvider != null && roleProvider.caregiverPhone.isNotEmpty) {
+      await _tts.speak('Calling your caregiver now.');
+      final uri = Uri.parse('tel:${roleProvider.caregiverPhone}');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await _tts.speak('Sorry, I couldn\'t launch the phone call.');
+      }
+    } else {
+      await _tts.speak('Sorry, no caregiver phone number is setup.');
+    }
   }
 
   void stopListening() {

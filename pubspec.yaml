@@ -25,6 +25,7 @@ dependencies:
   flutter_background_service: ^5.1.0
   flutter_local_notifications: ^21.0.0
   url_launcher: ^6.3.2
+  add_2_calendar: ^3.0.1
 
 dev_dependencies:
   flutter_test:

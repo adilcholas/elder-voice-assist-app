@@ -120,6 +120,15 @@ class ElderHomeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: _QuickCard(
+                    icon: Icons.calendar_month,
+                    label: 'Doctor\nVisits',
+                    color: Colors.deepPurple,
+                    onTap: () => context.push('/elder/appointments'),
+                  ),
+                ),
               ],
             ),
 

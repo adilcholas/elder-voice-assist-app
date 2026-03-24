@@ -12,6 +12,7 @@ import '../screens/emergency_alert_screen.dart';
 import '../screens/caregiver_dashboard_screen.dart';
 import '../screens/alert_detail_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/appointments_screen.dart';
 import '../providers/role_provider.dart';
 import '../models/user_role.dart';
 import '../models/alert_model.dart';
@@ -42,15 +43,12 @@ class AppRouter {
         final profile = roleProvider.profile;
 
         if (role == UserRole.caregiver) {
-          final isLinked = profile?.linkedUserId != null && profile!.linkedUserId!.isNotEmpty;
+          final isLinked = profile?.linkedUserIds.isNotEmpty == true;
           
           if (!isLinked) {
             // Must link before accessing dashboard
             if (location != '/caregiver/link') return '/caregiver/link';
             return null;
-          } else {
-            // Linked
-            if (location == '/caregiver/link') return '/caregiver/dashboard';
           }
         }
 
@@ -104,6 +102,10 @@ class AppRouter {
         GoRoute(
           path: '/elder/medications',
           builder: (context, state) => const MedicationScreen(),
+        ),
+        GoRoute(
+          path: '/elder/appointments',
+          builder: (context, state) => const AppointmentsScreen(),
         ),
 
         /// CAREGIVER ROUTES

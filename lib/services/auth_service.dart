@@ -96,13 +96,19 @@ class AuthService {
         await _firestore
             .collection('users')
             .doc(caregiverUid)
-            .update({'linkedUserId': elderUid});
+            .update({
+              'linkedUserId': elderUid,
+              'linkedUserIds': FieldValue.arrayUnion([elderUid]),
+            });
 
         // Update elder's linkedUserId
         await _firestore
             .collection('users')
             .doc(elderUid)
-            .update({'linkedUserId': caregiverUid});
+            .update({
+              'linkedUserId': caregiverUid,
+              'linkedUserIds': FieldValue.arrayUnion([caregiverUid]),
+            });
         return true;
       }
       return false; // Invite code not found

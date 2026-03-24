@@ -246,6 +246,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: AppSpacing.md),
           ],
 
+          /// LINK ANOTHER ELDER (only for caregivers)
+          if (roleProvider.isCaregiver) ...[
+            _SettingsCard(
+              child: ListTile(
+                leading: const Icon(Icons.person_add_alt_1, size: 28),
+                title: const Text(
+                  'Link Another Elder',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Add an additional elder using their invite code'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  context.push('/caregiver/link');
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+
           /// LOG OUT
           _SettingsCard(
             child: ListTile(
