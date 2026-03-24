@@ -2,8 +2,8 @@ package com.example.elder_voice_assist
 
 import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine   
-import io.flutter.plugin.common.EventChannel       
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 
 class MainActivity: FlutterActivity() {
 
@@ -16,12 +16,12 @@ class MainActivity: FlutterActivity() {
             .setStreamHandler(object : EventChannel.StreamHandler {
 
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    val intent = Intent(this@MainActivity, VoiceForegroundService::class.java)
+                    val intent = android.content.Intent(this@MainActivity, VoiceForegroundService::class.java)
                     startService(intent)
                 }
 
                 override fun onCancel(arguments: Any?) {
-                    val intent = Intent(this@MainActivity, VoiceForegroundService::class.java)
+                    val intent = android.content.Intent(this@MainActivity, VoiceForegroundService::class.java)
                     stopService(intent)
                 }
             })
