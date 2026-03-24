@@ -3,7 +3,9 @@ import 'package:elder_voice_assist/screens/medication_screen.dart';
 import 'package:elder_voice_assist/services/notification_service.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/splash_screen.dart';
-import '../screens/role_selection_screen.dart';
+import '../screens/login_screen.dart';
+import '../screens/signup_screen.dart';
+import '../screens/link_elder_screen.dart';
 import '../screens/elder_home_screen.dart';
 import '../screens/voice_listening_screen.dart';
 import '../screens/emergency_alert_screen.dart';
@@ -20,14 +22,45 @@ class AppRouter {
       initialLocation: '/',
       refreshListenable: roleProvider,
       redirect: (context, state) {
-        final role = roleProvider.role;
         final location = state.matchedLocation;
+        final isAuthRoute = location == '/login' || location == '/signup';
 
-        if (location == '/') return '/role-selection';
-        if (location == '/role-selection') return null;
+        // 1. Still loading from Firebase/Firestore, show splash screen
+        if (roleProvider.isLoading) {
+          if (location == '/') return null;
+          return '/';
+        }
 
-        if (role == null) return '/role-selection';
+        // 2. Not logged in
+        if (!roleProvider.isLoggedIn) {
+          if (isAuthRoute) return null; // let them login or signup
+          return '/login'; // redirect others to login
+        }
 
+        // 3. Logged in logic
+        final role = roleProvider.role;
+        final profile = roleProvider.profile;
+
+        if (role == UserRole.caregiver) {
+          final isLinked = profile?.linkedUserId != null && profile!.linkedUserId!.isNotEmpty;
+          
+          if (!isLinked) {
+            // Must link before accessing dashboard
+            if (location != '/caregiver/link') return '/caregiver/link';
+            return null;
+          } else {
+            // Linked
+            if (location == '/caregiver/link') return '/caregiver/dashboard';
+          }
+        }
+
+        // Redirect from auth routes or splash to correct home
+        if (isAuthRoute || location == '/') {
+          if (role == UserRole.elder) return '/elder/home';
+          if (role == UserRole.caregiver) return '/caregiver/dashboard';
+        }
+
+        // Protect specific paths
         final isGoingToCaregiver = location.startsWith('/caregiver');
         final isGoingToElder = location.startsWith('/elder');
 
@@ -43,8 +76,12 @@ class AppRouter {
       routes: [
         GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
         GoRoute(
-          path: '/role-selection',
-          builder: (context, state) => const RoleSelectionScreen(),
+          path: '/login',
+          builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/signup',
+          builder: (context, state) => const SignupScreen(),
         ),
 
         /// ELDER ROUTES
@@ -73,6 +110,10 @@ class AppRouter {
         GoRoute(
           path: '/caregiver/dashboard',
           builder: (context, state) => const CaregiverDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/caregiver/link',
+          builder: (context, state) => const LinkElderScreen(),
         ),
 
         /// Alert detail accepts either 'extra' (AlertModel) or path param id

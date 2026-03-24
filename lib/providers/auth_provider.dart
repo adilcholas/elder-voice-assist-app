@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_role.dart';
 import '../models/user_profile.dart';
+import '../models/user_role.dart';
 import '../services/auth_service.dart';
 
-class RoleProvider extends ChangeNotifier {
+class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
   
   User? _firebaseUser;
@@ -18,14 +17,10 @@ class RoleProvider extends ChangeNotifier {
   bool get isLoggedIn => _firebaseUser != null && _userProfile != null;
 
   UserRole? get role => _userProfile?.role;
-  String get userName => _userProfile?.name ?? '';
-  String get userPhone => _userProfile?.phone ?? '';
-  String get caregiverPhone => _userProfile?.caregiverPhone ?? '';
-
   bool get isElder => role == UserRole.elder;
   bool get isCaregiver => role == UserRole.caregiver;
 
-  RoleProvider() {
+  AuthProvider() {
     _init();
   }
 
@@ -88,32 +83,6 @@ class RoleProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  Future<void> updateProfile({
-    String? name,
-    String? phone,
-    String? caregiverPhone,
-  }) async {
-    if (_firebaseUser != null) {
-      final updates = <String, dynamic>{};
-      if (name != null) updates['name'] = name;
-      if (phone != null) updates['phone'] = phone;
-      if (caregiverPhone != null) updates['caregiverPhone'] = caregiverPhone;
-      
-      if (updates.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_firebaseUser!.uid)
-            .update(updates);
-        await refreshProfile();
-      }
-    }
-  }
-
-  Future<void> clearRole() async {
-    // Logout
-    await logout();
   }
 
   Future<void> logout() async {

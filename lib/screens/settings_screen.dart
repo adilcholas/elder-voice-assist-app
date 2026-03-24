@@ -227,25 +227,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           if (roleProvider.isElder) const SizedBox(height: AppSpacing.md),
 
-          /// CHANGE ROLE
+          /// INVITE CODE (only for elders)
+          if (roleProvider.isElder && roleProvider.profile?.inviteCode != null) ...[
+            _SettingsCard(
+              child: ListTile(
+                leading: const Icon(Icons.share, size: 28),
+                title: const Text(
+                  'Your Invite Code',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Share this code with your Caregiver to link accounts'),
+                trailing: Text(
+                  roleProvider.profile!.inviteCode,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2.0),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+
+          /// LOG OUT
           _SettingsCard(
             child: ListTile(
-              leading: const Icon(Icons.switch_account_outlined, size: 28),
+              leading: const Icon(Icons.logout, size: 28),
               title: const Text(
-                'Change Role',
+                'Log Out',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-              subtitle: const Text('Switch between Elder and Caregiver modes'),
-              onTap: () {
-                roleProvider.clearRole();
-                context.go('/role-selection');
+              subtitle: const Text('Sign out of your account'),
+              onTap: () async {
+                await roleProvider.logout();
+                if (context.mounted) {
+                  context.go('/login');
+                }
               },
             ),
           ),
-
-          const SizedBox(height: AppSpacing.md),
-
-          /// CLEAR ALERT HISTORY
           _SettingsCard(
             child: ListTile(
               leading: const Icon(Icons.delete_outline, size: 28),
