@@ -2,6 +2,8 @@ import 'package:elder_voice_assist/firebase_options.dart';
 import 'package:elder_voice_assist/providers/alert_provider.dart';
 import 'package:elder_voice_assist/providers/background_listener_provider.dart';
 import 'package:elder_voice_assist/providers/medication_provider.dart';
+import 'package:elder_voice_assist/providers/medication_provider.dart';
+import 'package:elder_voice_assist/providers/appointment_provider.dart';
 import 'package:elder_voice_assist/providers/theme_provider.dart';
 import 'package:elder_voice_assist/providers/voice_provider.dart';
 import 'package:elder_voice_assist/services/background_voice_service.dart';
@@ -42,7 +44,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => VoiceProvider()),
         ChangeNotifierProvider(create: (_) => BackgroundListenerProvider()),
-        ChangeNotifierProvider(create: (_) => MedicationProvider()),
         ChangeNotifierProvider(
           create: (_) {
             final provider = AlertProvider();
@@ -50,6 +51,12 @@ class MyApp extends StatelessWidget {
             return provider;
           },
         ),
+        ChangeNotifierProxyProvider2<AlertProvider, RoleProvider, MedicationProvider>(
+          create: (_) => MedicationProvider(),
+          update: (_, alertProvider, roleProvider, medProvider) =>
+              medProvider!..updateDependencies(alertProvider, roleProvider),
+        ),
+        ChangeNotifierProvider(create: (_) => AppointmentProvider()),
       ],
       child: const AppView(),
     );

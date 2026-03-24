@@ -9,6 +9,7 @@ class UserProfile {
   final UserRole role;
   final String inviteCode; // Used by Elder to share with Caregiver
   final String? linkedUserId; // ID of the linked Elder (if Caregiver), or linked Caregiver (if Elder)
+  final List<String> linkedUserIds; // Supports multiple linked users
 
   UserProfile({
     required this.uid,
@@ -19,6 +20,7 @@ class UserProfile {
     required this.role,
     required this.inviteCode,
     this.linkedUserId,
+    this.linkedUserIds = const [],
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> data, String uid) {
@@ -31,6 +33,9 @@ class UserProfile {
       role: data['role'] == 'elder' ? UserRole.elder : UserRole.caregiver,
       inviteCode: data['inviteCode'] ?? '',
       linkedUserId: data['linkedUserId'],
+      linkedUserIds: data['linkedUserIds'] != null 
+          ? List<String>.from(data['linkedUserIds']) 
+          : (data['linkedUserId'] != null ? [data['linkedUserId']] : []),
     );
   }
 
@@ -43,6 +48,7 @@ class UserProfile {
       'role': role.name,
       'inviteCode': inviteCode,
       'linkedUserId': linkedUserId,
+      'linkedUserIds': linkedUserIds,
     };
   }
 
@@ -55,6 +61,7 @@ class UserProfile {
     UserRole? role,
     String? inviteCode,
     String? linkedUserId,
+    List<String>? linkedUserIds,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -65,6 +72,7 @@ class UserProfile {
       role: role ?? this.role,
       inviteCode: inviteCode ?? this.inviteCode,
       linkedUserId: linkedUserId ?? this.linkedUserId,
+      linkedUserIds: linkedUserIds ?? this.linkedUserIds,
     );
   }
 }

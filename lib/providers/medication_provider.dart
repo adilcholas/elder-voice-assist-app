@@ -3,12 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/medication_model.dart';
 import '../services/notification_service.dart';
-
+import '../providers/alert_provider.dart';
+import '../providers/role_provider.dart';
 class MedicationProvider extends ChangeNotifier {
   static const String _storageKey = 'medications';
 
   final List<MedicationModel> _medications = [];
   Timer? _reminderTimer;
+  AlertProvider? _alertProvider;
+  RoleProvider? _roleProvider;
+
+  void updateDependencies(AlertProvider? alertProvider, RoleProvider? roleProvider) {
+    _alertProvider = alertProvider;
+    _roleProvider = roleProvider;
+  }
 
   List<MedicationModel> get medications => List.unmodifiable(_medications);
 
@@ -74,14 +82,17 @@ class MedicationProvider extends ChangeNotifier {
   }
 
   final Set<String> _notifiedDueKeys = {};
+  final Set<String> _notifiedOverdueKeys = {};
 
   /// Check overdue and notify every minute
   void _startReminderTimer() {
     _reminderTimer?.cancel();
     _reminderTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       for (final med in _medications) {
-        if (med.isActive && med.isDueNow && !med.isOverdue && med.nextDue != null) {
-          final alertKey = '${med.id}_${med.nextDue!.millisecondsSinceEpoch}';
+        if (!med.isActive || med.nextDue == null) continue;
+
+        if (med.isDueNow && !med.isOverdue) {
+          final alertKey = '${med.id}_due_${med.nextDue!.millisecondsSinceEpoch}';
           if (!_notifiedDueKeys.contains(alertKey)) {
             _notifiedDueKeys.add(alertKey);
             
@@ -99,6 +110,23 @@ class MedicationProvider extends ChangeNotifier {
               );
             } catch (e) {
               // Ignore failure for notification call structure if importing fails
+            }
+          }
+        } else if (med.isOverdue) {
+          final alertKey = '${med.id}_overdue_${med.nextDue!.millisecondsSinceEpoch}';
+          if (!_notifiedOverdueKeys.contains(alertKey)) {
+            _notifiedOverdueKeys.add(alertKey);
+            
+            // If the elder misses their medication, trigger an emergency missed alert
+            if (_alertProvider != null && _roleProvider != null && _roleProvider!.isElder) {
+              final elderName = _roleProvider!.userName.isNotEmpty 
+                  ? _roleProvider!.userName 
+                  : 'Elder User';
+              
+              _alertProvider!.triggerMedicationMissed(
+                elderName: elderName,
+                medicationName: med.name,
+              );
             }
           }
         }

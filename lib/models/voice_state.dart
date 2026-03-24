@@ -3,4 +3,5 @@ enum VoiceState {
   listening,
   processing,
   detectedHelp,
+  detectedCall,
 }

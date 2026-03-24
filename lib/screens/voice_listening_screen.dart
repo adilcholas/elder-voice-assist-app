@@ -194,6 +194,7 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
                               context,
                               alertProvider,
                               elderName: elderName,
+                              roleProvider: roleProvider,
                             );
                           }
                         },
@@ -223,6 +224,7 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
       case VoiceState.processing:
         return AppColors.warning;
       case VoiceState.detectedHelp:
+      case VoiceState.detectedCall:
         return AppColors.error;
     }
   }
@@ -237,6 +239,8 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
         return Icons.graphic_eq_rounded;
       case VoiceState.detectedHelp:
         return Icons.warning_rounded;
+      case VoiceState.detectedCall:
+        return Icons.call;
     }
   }
 
@@ -250,6 +254,8 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
         return 'Processing Voice';
       case VoiceState.detectedHelp:
         return 'Help Detected!';
+      case VoiceState.detectedCall:
+        return 'Calling Caregiver...';
     }
   }
 
@@ -263,6 +269,8 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
         return 'Analyzing your voice input.';
       case VoiceState.detectedHelp:
         return 'Triggering emergency assistance now...';
+      case VoiceState.detectedCall:
+        return 'Initiating phone call now...';
     }
   }
 }
