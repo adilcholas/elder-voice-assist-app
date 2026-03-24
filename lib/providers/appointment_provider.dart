@@ -1,11 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/appointment_model.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
+import '../providers/alert_provider.dart';
+import '../providers/role_provider.dart';
 
 class AppointmentProvider extends ChangeNotifier {
   static const String _storageKey = 'appointments';
   final List<AppointmentModel> _appointments = [];
+  AlertProvider? _alertProvider;
+  RoleProvider? _roleProvider;
+  Timer? _checkTimer;
+  final Set<String> _notifiedMissedApts = {};
+
+  void updateDependencies(AlertProvider? alertProvider, RoleProvider? roleProvider) {
+    _alertProvider = alertProvider;
+    _roleProvider = roleProvider;
+  }
 
   List<AppointmentModel> get appointments {
     final sorted = List<AppointmentModel>.from(_appointments);
@@ -15,6 +27,31 @@ class AppointmentProvider extends ChangeNotifier {
 
   AppointmentProvider() {
     _loadAppointments();
+    _startCheckTimer();
+  }
+
+  void _startCheckTimer() {
+    _checkTimer?.cancel();
+    _checkTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final now = DateTime.now();
+      for (final apt in _appointments) {
+        // Assume appointment is missed if 1 hour past start time
+        if (now.isAfter(apt.dateTime.add(const Duration(hours: 1)))) {
+          if (!_notifiedMissedApts.contains(apt.id)) {
+            _notifiedMissedApts.add(apt.id);
+            if (_alertProvider != null && _roleProvider != null && _roleProvider!.isElder) {
+              final elderName = _roleProvider!.userName.isNotEmpty 
+                  ? _roleProvider!.userName : 'Elder User';
+              _alertProvider!.triggerAppointmentMissed(
+                elderName: elderName,
+                appointmentName: apt.title,
+                location: apt.location,
+              );
+            }
+          }
+        }
+      }
+    });
   }
 
   Future<void> addAppointment(AppointmentModel appointment) async {
@@ -55,5 +92,11 @@ class AppointmentProvider extends ChangeNotifier {
       _appointments.addAll(storedList.map((json) => AppointmentModel.fromJson(json)));
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _checkTimer?.cancel();
+    super.dispose();
   }
 }

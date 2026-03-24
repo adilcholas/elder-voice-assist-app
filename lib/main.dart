@@ -56,7 +56,11 @@ class MyApp extends StatelessWidget {
           update: (_, alertProvider, roleProvider, medProvider) =>
               medProvider!..updateDependencies(alertProvider, roleProvider),
         ),
-        ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+        ChangeNotifierProxyProvider2<AlertProvider, RoleProvider, AppointmentProvider>(
+          create: (_) => AppointmentProvider(),
+          update: (_, alertProvider, roleProvider, aptProvider) =>
+              aptProvider!..updateDependencies(alertProvider, roleProvider),
+        ),
       ],
       child: const AppView(),
     );

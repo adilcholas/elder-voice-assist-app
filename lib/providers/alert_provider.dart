@@ -100,6 +100,39 @@ class AlertProvider extends ChangeNotifier {
     _startEscalationTimer(newAlert.id, elderName, resolvedLocation);
   }
 
+  /// Trigger appointment missed alert
+  Future<void> triggerAppointmentMissed({
+    required String elderName,
+    required String appointmentName,
+    String? location,
+  }) async {
+    final resolvedLocation =
+        location ?? await LocationService.getCurrentLocation();
+
+    final newAlert = AlertModel(
+      id: _generateId(),
+      elderName: elderName,
+      type: AlertType.appointmentMissed,
+      timestamp: DateTime.now(),
+      location: resolvedLocation,
+      status: AlertStatus.active,
+      notes: 'Missed appointment: $appointmentName',
+    );
+
+    _alerts.insert(0, newAlert);
+    await _saveAlerts();
+    notifyListeners();
+
+    await NotificationService().showAlertNotification(
+      alertId: newAlert.id,
+      elderName: newAlert.elderName,
+      alertType: 'Missed Appointment: $appointmentName',
+      location: newAlert.location,
+    );
+
+    _startEscalationTimer(newAlert.id, elderName, resolvedLocation);
+  }
+
   /// Start escalation timer — caregiver must acknowledge before timeout
   void _startEscalationTimer(
     String alertId,

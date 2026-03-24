@@ -76,6 +76,8 @@ class VoiceProvider extends ChangeNotifier {
           await _detectHelp(alertProvider, elderName: elderName);
         } else if (_containsCallKeywords(words)) {
           await _detectCall(roleProvider);
+        } else if (result.finalResult && words.isNotEmpty) {
+          await _handleUnknownCommand();
         }
       },
       listenFor: const Duration(seconds: 30),
@@ -146,6 +148,16 @@ class VoiceProvider extends ChangeNotifier {
     } else {
       await _tts.speak('Sorry, no caregiver phone number is setup.');
     }
+  }
+
+  Future<void> _handleUnknownCommand() async {
+    if (_state != VoiceState.listening) return;
+
+    _state = VoiceState.idle;
+    notifyListeners();
+
+    await _speech.stop();
+    await _tts.speak("I'm sorry, I didn't understand that. Please say Help or Call.");
   }
 
   void stopListening() {

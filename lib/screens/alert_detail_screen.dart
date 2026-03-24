@@ -199,52 +199,83 @@ class AlertDetailScreen extends StatelessWidget {
               child: TextButton.icon(
                 icon: const Icon(Icons.call),
                 label: const Text('Call Elder', style: TextStyle(fontSize: 18)),
-                onPressed: () async {
-                  final profile = context.read<RoleProvider>().profile;
-                  if (profile?.linkedUserId != null) {
-                    try {
-                      final doc = await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(profile!.linkedUserId)
-                          .get();
-                      final phone = doc.data()?['phone'] as String?;
-                      if (phone != null && phone.isNotEmpty) {
-                        final uri = Uri.parse('tel:$phone');
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri);
-                        } else {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Could not launch dialer.')),
-                            );
-                          }
-                        }
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Elder phone number not found.')),
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Failed to fetch Elder number.')),
-                        );
-                      }
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No Elder linked.')),
-                    );
-                  }
-                },
+                onPressed: () => _contactElder(context, liveAlert, isSms: false),
+              ),
+            ),
+            
+            const SizedBox(height: AppSpacing.md),
+            
+            /// Send Reminder Message
+            SizedBox(
+              width: double.infinity,
+              height: AppSpacing.buttonHeight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.message),
+                label: const Text('Send Reminder Message', style: TextStyle(fontSize: 18)),
+                onPressed: () => _contactElder(context, liveAlert, isSms: true),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _contactElder(BuildContext context, AlertModel liveAlert, {required bool isSms}) async {
+    final profile = context.read<RoleProvider>().profile;
+    if (profile?.linkedUserId != null) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(profile!.linkedUserId)
+            .get();
+        final phone = doc.data()?['phone'] as String?;
+        if (phone != null && phone.isNotEmpty) {
+          Uri uri;
+          if (isSms) {
+            String message = '';
+            if (liveAlert.type == AlertType.medicationMissed) {
+              message = 'Hi, please remember to take your medication!';
+            } else if (liveAlert.type == AlertType.appointmentMissed) {
+              message = 'Hi, you have a doctor appointment you might have missed!';
+            } else {
+              message = 'Hi, checking in to see if you are okay?';
+            }
+            uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(message)}');
+          } else {
+            uri = Uri.parse('tel:$phone');
+          }
+          
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Could not launch ${isSms ? 'messaging app' : 'dialer'}.')),
+              );
+            }
+          }
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Elder phone number not found.')),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to fetch Elder number.')),
+          );
+        }
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No Elder linked.')),
+        );
+      }
+    }
   }
 
   Color _statusColor(AlertStatus status) {

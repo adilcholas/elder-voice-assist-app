@@ -2,7 +2,7 @@ import 'dart:convert';
 
 enum AlertStatus { active, acknowledged, resolved, escalated }
 
-enum AlertType { emergency, voiceDistress, medicationMissed, fallDetected }
+enum AlertType { emergency, voiceDistress, medicationMissed, appointmentMissed, fallDetected }
 
 class AlertModel {
   final String id;
