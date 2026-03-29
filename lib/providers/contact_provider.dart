@@ -1,11 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/contact_model.dart';
 import 'role_provider.dart';
 
 class ContactProvider extends ChangeNotifier {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
   List<ContactModel> _contacts = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -18,11 +17,17 @@ class ContactProvider extends ChangeNotifier {
 
   /// Called by ProxyProvider when RoleProvider changes.
   Future<void> updateDependencies(RoleProvider roleProvider) async {
-    final uid = roleProvider.firebaseUser?.uid;
+    // If caregiver is logged in, use linked elder's UID if available, else own UID.
+    final uid = roleProvider.isCaregiver 
+        ? (roleProvider.profile?.linkedUserId ?? roleProvider.firebaseUser?.uid) 
+        : roleProvider.firebaseUser?.uid;
+
     if (uid == null || uid == _currentUid) return;
     _currentUid = uid;
     await _loadContacts(uid);
   }
+
+  String _getStorageKey(String uid) => 'contacts_$uid';
 
   Future<void> _loadContacts(String uid) async {
     _isLoading = true;
@@ -30,20 +35,43 @@ class ContactProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final snapshot = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('contacts')
-          .orderBy('name')
-          .get();
+      final prefs = await SharedPreferences.getInstance();
+      final key = _getStorageKey(uid);
+      final jsonString = prefs.getString(key);
 
-      _contacts = snapshot.docs
-          .map((doc) => ContactModel.fromMap(doc.data(), doc.id))
-          .toList();
+      if (jsonString != null) {
+        final List<dynamic> decoded = jsonDecode(jsonString);
+        _contacts = decoded.map((item) {
+          final id = item['id'] as String;
+          return ContactModel.fromMap(item as Map<String, dynamic>, id);
+        }).toList();
+      } else {
+        _contacts = [];
+      }
+      
+      _contacts.sort((a, b) => a.name.compareTo(b.name));
     } catch (e) {
-      _errorMessage = 'Failed to load contacts: $e';
+      _errorMessage = 'Failed to load local contacts: $e';
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _saveContactsToLocal(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _getStorageKey(uid);
+      
+      final encoded = jsonEncode(_contacts.map((c) {
+        final map = c.toMap();
+        map['id'] = c.id; // ensure ID is saved
+        return map;
+      }).toList());
+      
+      await prefs.setString(key, encoded);
+    } catch (e) {
+      _errorMessage = 'Failed to save contacts locally: $e';
       notifyListeners();
     }
   }
@@ -51,15 +79,14 @@ class ContactProvider extends ChangeNotifier {
   Future<void> addContact(ContactModel contact) async {
     if (_currentUid == null) return;
     try {
-      final docRef = await _db
-          .collection('users')
-          .doc(_currentUid)
-          .collection('contacts')
-          .add(contact.toMap());
-
-      _contacts.add(contact.copyWith(id: docRef.id));
-      // Sort alphabetically
+      // Generate a simple ID
+      final newContact = contact.copyWith(
+          id: DateTime.now().millisecondsSinceEpoch.toString());
+          
+      _contacts.add(newContact);
       _contacts.sort((a, b) => a.name.compareTo(b.name));
+      
+      await _saveContactsToLocal(_currentUid!);
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to add contact: $e';
@@ -70,14 +97,8 @@ class ContactProvider extends ChangeNotifier {
   Future<void> removeContact(String contactId) async {
     if (_currentUid == null) return;
     try {
-      await _db
-          .collection('users')
-          .doc(_currentUid)
-          .collection('contacts')
-          .doc(contactId)
-          .delete();
-
       _contacts.removeWhere((c) => c.id == contactId);
+      await _saveContactsToLocal(_currentUid!);
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to remove contact: $e';
@@ -85,11 +106,16 @@ class ContactProvider extends ChangeNotifier {
     }
   }
 
-  /// Fuzzy match by name — used by voice commands ("Call Adil").
+  /// Fuzzy match by name or relationship.
   /// Returns null if no match found.
   ContactModel? findByName(String query) {
     if (query.trim().isEmpty) return null;
     final q = query.trim().toLowerCase();
+
+    // 0. Exact match on relationship (e.g. "son", "daughter", "caregiver")
+    for (final c in _contacts) {
+      if (c.relationship.toLowerCase() == q) return c;
+    }
 
     // 1. Exact match (case-insensitive)
     for (final c in _contacts) {

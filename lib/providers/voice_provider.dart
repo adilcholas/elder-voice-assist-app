@@ -196,11 +196,12 @@ class VoiceProvider extends ChangeNotifier {
       'mere beta ka call karo', 'mere bete ko call karo',
       'beti ko call karo', 'beta ko call karo',
       'makkale vilikku', 'mone vilikku', 'mole vilikku',
-      'vilikku', 'phone cheyyu',
+      'vilikku', 'phone cheyyu', 'call',
     ];
-    for (final pat in genericPatterns) {
-      if (words.contains(pat)) return ''; // generic → call caregiver
-    }
+    
+    // Check if the entire string is just a generic pattern
+    final exactMatch = genericPatterns.any((pat) => words == pat);
+    if (exactMatch) return '';
 
     // Strip call-verb words to isolate the name
     var cleaned = words

@@ -20,7 +20,7 @@ dependencies:
   permission_handler: 
   provider: 
   go_router: ^17.1.0
-  shared_preferences: ^2.5.4
+  shared_preferences: ^2.5.5
   geocoding: ^4.0.0
   flutter_background_service: ^5.1.0
   flutter_local_notifications: ^21.0.0

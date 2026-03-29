@@ -25,23 +25,49 @@ class ContactsScreen extends StatelessWidget {
       ),
       body: contactProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : contactProvider.contacts.isEmpty
-              ? _EmptyContacts(onAdd: () => _showAddContactSheet(context))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  itemCount: contactProvider.contacts.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final contact = contactProvider.contacts[index];
-                    return _ContactCard(
-                      contact: contact,
-                      onCall: () => _callContact(context, contact),
-                      onDelete: () =>
-                          _confirmDelete(context, contactProvider, contact),
-                    );
-                  },
-                ),
+          : contactProvider.errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 60, color: AppColors.error),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          contactProvider.errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.error),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        ElevatedButton(
+                          onPressed: () {
+                             // Try to reload, but we need the RoleProvider to do it from the top
+                          },
+                          child: const Text('Try Again'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : contactProvider.contacts.isEmpty
+                  ? _EmptyContacts(onAdd: () => _showAddContactSheet(context))
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      itemCount: contactProvider.contacts.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final contact = contactProvider.contacts[index];
+                        return _ContactCard(
+                          contact: contact,
+                          onCall: () => _callContact(context, contact),
+                          onDelete: () =>
+                              _confirmDelete(context, contactProvider, contact),
+                        );
+                      },
+                    ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddContactSheet(context),
         icon: const Icon(Icons.person_add_alt_1),
