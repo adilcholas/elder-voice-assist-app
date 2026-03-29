@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import '../models/voice_state.dart';
 import 'alert_provider.dart';
 import 'role_provider.dart';
@@ -68,8 +68,8 @@ class VoiceProvider extends ChangeNotifier {
     _lastWords = '';
     notifyListeners();
 
-    await _tts.speak(
-        'Voice assistant activated. Say Help for emergency, or say Call and a name.');
+    // Removed long TTS prompt so the user can speak immediately
+    // await _tts.speak('Voice assistant activated. Say Help for emergency, or say Call and a name.');
 
     await _speech.listen(
       onResult: (result) async {
@@ -188,15 +188,10 @@ class VoiceProvider extends ChangeNotifier {
   /// Strips call-verb patterns to extract the target person's name.
   /// Returns empty string if it's a generic call (no name specified).
   String _extractCallTarget(String words) {
-    // Known generic patterns that do NOT contain a name
     const genericPatterns = [
-      'call my son', 'call my daughter', 'call my caregiver',
-      'call my doctor', 'call caregiver', 'call family', 'call friend',
+      'call my caregiver', 'call caregiver',
       'call karo', 'phone karo', 'phone lagao', 'call lagao',
-      'mere beta ka call karo', 'mere bete ko call karo',
-      'beti ko call karo', 'beta ko call karo',
-      'makkale vilikku', 'mone vilikku', 'mole vilikku',
-      'vilikku', 'phone cheyyu', 'call',
+      'vilikku', 'phone cheyyu', 'call', 'make a call',
     ];
     
     // Check if the entire string is just a generic pattern
@@ -264,11 +259,9 @@ class VoiceProvider extends ChangeNotifier {
   }
 
   Future<void> _dialNumber(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      await _tts.speak("Sorry, I couldn't launch the phone call.");
+    bool? res = await FlutterPhoneDirectCaller.callNumber(phone);
+    if (res == null || !res) {
+      await _tts.speak("Sorry, I couldn't make the phone call.");
       _state = VoiceState.idle;
       notifyListeners();
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import '../models/contact_model.dart';
 import '../providers/contact_provider.dart';
 import '../utils/app_colors.dart';
@@ -79,14 +79,12 @@ class ContactsScreen extends StatelessWidget {
 
   Future<void> _callContact(
       BuildContext context, ContactModel contact) async {
-    final uri = Uri.parse('tel:${contact.phone}');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
+    bool? res = await FlutterPhoneDirectCaller.callNumber(contact.phone);
+    if (res == null || !res) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cannot call ${contact.name}. Check the number.'),
+            content: Text('Cannot call ${contact.name}. Check the number or permissions.'),
             backgroundColor: AppColors.error,
           ),
         );

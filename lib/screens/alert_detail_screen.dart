@@ -5,6 +5,7 @@ import '../models/alert_model.dart';
 import '../providers/alert_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import '../providers/role_provider.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
@@ -231,7 +232,6 @@ class AlertDetailScreen extends StatelessWidget {
             .get();
         final phone = doc.data()?['phone'] as String?;
         if (phone != null && phone.isNotEmpty) {
-          Uri uri;
           if (isSms) {
             String message = '';
             if (liveAlert.type == AlertType.medicationMissed) {
@@ -241,18 +241,24 @@ class AlertDetailScreen extends StatelessWidget {
             } else {
               message = 'Hi, checking in to see if you are okay?';
             }
-            uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(message)}');
+            final uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(message)}');
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+            } else {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Could not launch messaging app.')),
+                );
+              }
+            }
           } else {
-            uri = Uri.parse('tel:$phone');
-          }
-          
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri);
-          } else {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Could not launch ${isSms ? 'messaging app' : 'dialer'}.')),
-              );
+            bool? res = await FlutterPhoneDirectCaller.callNumber(phone);
+            if (res == null || !res) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Could not make phone call directly. Check permissions.')),
+                );
+              }
             }
           }
         } else {
