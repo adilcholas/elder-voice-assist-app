@@ -132,6 +132,29 @@ class ElderHomeScreen extends StatelessWidget {
               ],
             ),
 
+            const SizedBox(height: AppSpacing.md),
+
+            // Second row — Contacts
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickCard(
+                    icon: Icons.contacts_rounded,
+                    label: 'My\nContacts',
+                    color: Colors.teal,
+                    onTap: () => context.push('/elder/contacts'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                // Spacer cards to keep layout balanced
+                const Expanded(child: SizedBox()),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(child: SizedBox()),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+
             const SizedBox(height: AppSpacing.lg),
 
             /// Medication Overdue Warning

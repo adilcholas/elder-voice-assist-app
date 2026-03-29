@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
@@ -17,7 +18,7 @@ class AuthService {
         return UserProfile.fromMap(doc.data()!, doc.id);
       }
     } catch (e) {
-      print('Error getting user profile: $e');
+      debugPrint('Error getting user profile: $e');
     }
     return null;
   }
@@ -113,7 +114,7 @@ class AuthService {
       }
       return false; // Invite code not found
     } catch (e) {
-      print('Error linking elder: $e');
+      debugPrint('Error linking elder: $e');
       return false;
     }
   }

@@ -1,5 +1,6 @@
 import 'package:elder_voice_assist/screens/health_overview_screen.dart';
 import 'package:elder_voice_assist/screens/medication_screen.dart';
+import 'package:elder_voice_assist/screens/contacts_screen.dart';
 import 'package:elder_voice_assist/services/notification_service.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/splash_screen.dart';
@@ -106,6 +107,10 @@ class AppRouter {
         GoRoute(
           path: '/elder/appointments',
           builder: (context, state) => const AppointmentsScreen(),
+        ),
+        GoRoute(
+          path: '/elder/contacts',
+          builder: (context, state) => const ContactsScreen(),
         ),
 
         /// CAREGIVER ROUTES

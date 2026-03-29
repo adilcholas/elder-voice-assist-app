@@ -7,6 +7,7 @@ import '../providers/role_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/background_listener_provider.dart';
+import '../providers/contact_provider.dart';
 import '../services/background_voice_service.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
@@ -60,6 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final themeProvider = context.watch<ThemeProvider>();
     final alertProvider = context.read<AlertProvider>();
     final bgListenerProvider = context.watch<BackgroundListenerProvider>();
+    final contactProvider = context.watch<ContactProvider>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -226,6 +228,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
           if (roleProvider.isElder) const SizedBox(height: AppSpacing.md),
+
+          /// MANAGE CONTACTS (only for elders)
+          if (roleProvider.isElder) ...[
+            _SettingsCard(
+              child: ListTile(
+                leading: const Icon(Icons.contacts_rounded, size: 28),
+                title: const Text(
+                  'Manage Contacts',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  contactProvider.contacts.isEmpty
+                      ? 'No contacts saved yet'
+                      : '${contactProvider.contacts.length} contact${contactProvider.contacts.length == 1 ? '' : 's'} saved',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/elder/contacts'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
 
           /// INVITE CODE (only for elders)
           if (roleProvider.isElder && roleProvider.profile?.inviteCode != null) ...[

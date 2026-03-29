@@ -1,7 +1,7 @@
 import 'package:elder_voice_assist/firebase_options.dart';
 import 'package:elder_voice_assist/providers/alert_provider.dart';
 import 'package:elder_voice_assist/providers/background_listener_provider.dart';
-import 'package:elder_voice_assist/providers/medication_provider.dart';
+import 'package:elder_voice_assist/providers/contact_provider.dart';
 import 'package:elder_voice_assist/providers/medication_provider.dart';
 import 'package:elder_voice_assist/providers/appointment_provider.dart';
 import 'package:elder_voice_assist/providers/theme_provider.dart';
@@ -60,6 +60,11 @@ class MyApp extends StatelessWidget {
           create: (_) => AppointmentProvider(),
           update: (_, alertProvider, roleProvider, aptProvider) =>
               aptProvider!..updateDependencies(alertProvider, roleProvider),
+        ),
+        ChangeNotifierProxyProvider<RoleProvider, ContactProvider>(
+          create: (_) => ContactProvider(),
+          update: (_, roleProvider, contactProvider) =>
+              contactProvider!..updateDependencies(roleProvider),
         ),
       ],
       child: const AppView(),

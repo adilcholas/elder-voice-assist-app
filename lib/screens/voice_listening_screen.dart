@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/voice_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/role_provider.dart';
+import '../providers/contact_provider.dart';
 import '../models/voice_state.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
@@ -43,6 +44,7 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
     final voiceProvider = context.watch<VoiceProvider>();
     final alertProvider = context.read<AlertProvider>();
     final roleProvider = context.read<RoleProvider>();
+    final contactProvider = context.read<ContactProvider>();
     final elderName = roleProvider.userName.isNotEmpty
         ? roleProvider.userName
         : 'Elder User';
@@ -195,6 +197,7 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
                               alertProvider,
                               elderName: elderName,
                               roleProvider: roleProvider,
+                              contactProvider: contactProvider,
                             );
                           }
                         },

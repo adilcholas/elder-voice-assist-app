@@ -5,6 +5,7 @@ import '../models/medication_model.dart';
 import '../providers/medication_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/role_provider.dart';
+import '../services/tts_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_typography.dart';
@@ -53,6 +54,7 @@ class MedicationScreen extends StatelessWidget {
                           .read<MedicationProvider>()
                           .removeMedication(m.id),
                       onMissedAlert: () => _triggerMissedAlert(context, m),
+                      onReadAloud: () => TtsService().speakMedication(m),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -71,6 +73,7 @@ class MedicationScreen extends StatelessWidget {
                           .read<MedicationProvider>()
                           .removeMedication(m.id),
                       onMissedAlert: () => _triggerMissedAlert(context, m),
+                      onReadAloud: () => TtsService().speakMedication(m),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -91,6 +94,7 @@ class MedicationScreen extends StatelessWidget {
                         .read<MedicationProvider>()
                         .removeMedication(m.id),
                     onMissedAlert: () => _triggerMissedAlert(context, m),
+                    onReadAloud: () => TtsService().speakMedication(m),
                   ),
                 ),
               ],
@@ -161,12 +165,14 @@ class _MedicationCard extends StatelessWidget {
   final VoidCallback onTaken;
   final VoidCallback onDelete;
   final VoidCallback onMissedAlert;
+  final VoidCallback onReadAloud;
 
   const _MedicationCard({
     required this.medication,
     required this.onTaken,
     required this.onDelete,
     required this.onMissedAlert,
+    required this.onReadAloud,
   });
 
   @override
@@ -318,6 +324,31 @@ class _MedicationCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(width: 8),
+                // 🔊 Speak button — for elders who cannot read
+                Tooltip(
+                  message: 'Read aloud',
+                  child: InkWell(
+                    onTap: onReadAloud,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.volume_up_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 IconButton(
                   icon: const Icon(
                     Icons.delete_outline,

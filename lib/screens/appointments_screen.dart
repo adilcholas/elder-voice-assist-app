@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/appointment_provider.dart';
 import '../models/appointment_model.dart';
+import '../services/tts_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 
@@ -112,36 +113,85 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 return Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.md),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(AppSpacing.md),
-                    leading: const CircleAvatar(
-                      backgroundColor: AppColors.primary,
-                      radius: 24,
-                      child: Icon(Icons.local_hospital, color: Colors.white),
-                    ),
-                    title: Text('${apt.title} with Dr. ${apt.doctorName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    subtitle: Column(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 4),
-                        Text('📅 ${apt.dateTime.toLocal().toString().replaceAll(':00.000', '')}'),
-                        if (apt.location.isNotEmpty) Text('📍 ${apt.location}'),
-                        const SizedBox(height: 4),
-                        const Text('Long press to remove appointment'),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            backgroundColor: AppColors.primary,
+                            radius: 24,
+                            child: Icon(Icons.local_hospital, color: Colors.white),
+                          ),
+                          title: Text(
+                            '${apt.title} with Dr. ${apt.doctorName}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text('\ud83d\udcc5 ${apt.dateTime.toLocal().toString().replaceAll(':00.000', '')}'),
+                              if (apt.location.isNotEmpty) Text('\ud83d\udccd ${apt.location}'),
+                              const SizedBox(height: 4),
+                              const Text('Long press to remove appointment'),
+                            ],
+                          ),
+                          onLongPress: () {
+                            provider.removeAppointment(apt.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Appointment removed')),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        // Action row: Calendar + Speak
+                        Row(
+                          children: [
+                            // Add to calendar button
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.calendar_month, size: 18),
+                                label: const Text('Add to Calendar'),
+                                onPressed: () {
+                                  provider.addAppointmentToCalendar(apt);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Opening Calendar...')),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // 🔊 Speak button — accessibility for non-readers
+                            Tooltip(
+                              message: 'Read aloud',
+                              child: InkWell(
+                                onTap: () => TtsService().speakAppointment(apt),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: 48,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.volume_up_rounded,
+                                    color: AppColors.primary,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.calendar_month, color: AppColors.secondary, size: 28),
-                      tooltip: 'Add to Device Calendar',
-                      onPressed: () {
-                        provider.addAppointmentToCalendar(apt);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening Calendar...')));
-                      },
-                    ),
-                    onLongPress: () {
-                      provider.removeAppointment(apt.id);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Appointment removed')));
-                    },
                   ),
                 );
               },
