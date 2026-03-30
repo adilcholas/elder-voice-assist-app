@@ -60,6 +60,18 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
     final isListening = voiceProvider.state == VoiceState.listening;
     final circleColor = _getCircleColor(voiceProvider.state);
 
+    final languageMap = {
+      'English': 'en-IN',
+      'Hindi': 'hi-IN',
+      'Malayalam': 'ml-IN',
+    };
+    final currentLanguage = languageMap.entries
+        .firstWhere(
+          (e) => e.value == voiceProvider.selectedLanguage,
+          orElse: () => const MapEntry('English', 'en-IN'),
+        )
+        .key;
+
     return PopScope(
       canPop: true,
       child: Scaffold(
@@ -69,6 +81,30 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              /// Language Selection
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Language: ', style: TextStyle(fontSize: 16)),
+                  DropdownButton<String>(
+                    value: currentLanguage,
+                    items: languageMap.keys.map((lang) {
+                      return DropdownMenuItem<String>(
+                        value: lang,
+                        child: Text(lang),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        voiceProvider.setLanguage(languageMap[value]!);
+                      }
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
               /// Pulsing Animation Container
               AnimatedBuilder(
                 animation: _pulseController,

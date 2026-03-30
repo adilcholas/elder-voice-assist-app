@@ -60,6 +60,7 @@ class BackgroundVoiceService {
           service.invoke("emergency_detected");
         }
       },
+      localeId: 'en-IN',
     );
 
     /// Restart listening if it stops (important for continuous background)
@@ -75,6 +76,7 @@ class BackgroundVoiceService {
               service.invoke("emergency_detected");
             }
           },
+          localeId: 'en-IN',
         );
       }
     });

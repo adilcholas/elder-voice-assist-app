@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/voice_state.dart';
 import 'alert_provider.dart';
 import 'role_provider.dart';
@@ -24,9 +25,12 @@ class VoiceProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  String _selectedLanguage = 'en-IN';
+  String get selectedLanguage => _selectedLanguage;
+
   Future<bool> _initSpeech() async {
     if (_isInitialized) return true;
-    await _tts.setLanguage('en-US');
+    await _tts.setLanguage(_selectedLanguage);
     await _tts.setSpeechRate(0.48);
     await _tts.setVolume(1.0);
 
@@ -46,6 +50,12 @@ class VoiceProvider extends ChangeNotifier {
       },
     );
     return _isInitialized;
+  }
+
+  void setLanguage(String languageCode) {
+    _selectedLanguage = languageCode;
+    _tts.setLanguage(languageCode);
+    notifyListeners();
   }
 
   Future<void> startListening(
@@ -96,6 +106,7 @@ class VoiceProvider extends ChangeNotifier {
       },
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 5),
+      localeId: _selectedLanguage,
       listenOptions: SpeechListenOptions(
         cancelOnError: false,
         partialResults: true,
@@ -172,11 +183,11 @@ class VoiceProvider extends ChangeNotifier {
     // Dynamic pattern — "call [name]" in English/Hindi/Malayalam
     // Catches "call adil", "adil ko call karo", "adil vilikku", etc.
     final callPrefixPatterns = [
-      RegExp(r'\bcall\s+\w+'),    // "call adil"
+      RegExp(r'\bcall\s+\w+'), // "call adil"
       RegExp(r'\w+\s+ko\s+call'), // "adil ko call karo"
-      RegExp(r'\w+\s+vilikku'),   // "adil vilikku"
-      RegExp(r'\w+\s+ko\s+phone'),// "adil ko phone karo"
-      RegExp(r'phone\s+\w+'),     // "phone adil"
+      RegExp(r'\w+\s+vilikku'), // "adil vilikku"
+      RegExp(r'\w+\s+ko\s+phone'), // "adil ko phone karo"
+      RegExp(r'phone\s+\w+'), // "phone adil"
     ];
 
     if (callPrefixPatterns.any((p) => p.hasMatch(words))) return true;
@@ -189,11 +200,18 @@ class VoiceProvider extends ChangeNotifier {
   /// Returns empty string if it's a generic call (no name specified).
   String _extractCallTarget(String words) {
     const genericPatterns = [
-      'call my caregiver', 'call caregiver',
-      'call karo', 'phone karo', 'phone lagao', 'call lagao',
-      'vilikku', 'phone cheyyu', 'call', 'make a call',
+      'call my caregiver',
+      'call caregiver',
+      'call karo',
+      'phone karo',
+      'phone lagao',
+      'call lagao',
+      'vilikku',
+      'phone cheyyu',
+      'call',
+      'make a call',
     ];
-    
+
     // Check if the entire string is just a generic pattern
     final exactMatch = genericPatterns.any((pat) => words == pat);
     if (exactMatch) return '';
@@ -240,9 +258,13 @@ class VoiceProvider extends ChangeNotifier {
         await _dialNumber(contact.phone);
         return;
       } else {
-        // Name heard but not in contacts — inform and fall through to caregiver
+        // Name heard but not in contacts — inform and do not call caregiver
         await _tts.speak(
-            'Contact "$targetName" not found. Calling your caregiver instead.');
+          'Contact "$targetName" not found. Please add the contact in settings.',
+        );
+        _state = VoiceState.idle;
+        notifyListeners();
+        return;
       }
     }
 
@@ -252,16 +274,29 @@ class VoiceProvider extends ChangeNotifier {
       await _dialNumber(roleProvider.caregiverPhone);
     } else {
       await _tts.speak(
-          'Sorry, no caregiver phone number is set up. Please add one in Settings.');
+        'Sorry, no caregiver phone number is set up. Please add one in Settings.',
+      );
       _state = VoiceState.idle;
       notifyListeners();
     }
   }
 
   Future<void> _dialNumber(String phone) async {
+    final status = await Permission.phone.request();
+    if (!status.isGranted) {
+      await _tts.speak("Phone permission is required to make calls.");
+      _state = VoiceState.idle;
+      notifyListeners();
+      return;
+    }
     bool? res = await FlutterPhoneDirectCaller.callNumber(phone);
     if (res == null || !res) {
       await _tts.speak("Sorry, I couldn't make the phone call.");
+      _state = VoiceState.idle;
+      notifyListeners();
+    } else {
+      // Call initiated successfully, reset state after a delay
+      await Future.delayed(const Duration(seconds: 2));
       _state = VoiceState.idle;
       notifyListeners();
     }
@@ -279,7 +314,8 @@ class VoiceProvider extends ChangeNotifier {
 
     await _speech.stop();
     await _tts.speak(
-        "I'm sorry, I didn't understand that. Please say Help for emergency, or Call followed by a name.");
+      "I'm sorry, I didn't understand that. Please say Help for emergency, or Call followed by a name.",
+    );
   }
 
   // ─────────────────────────────────────────────

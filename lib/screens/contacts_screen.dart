@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/contact_model.dart';
 import '../providers/contact_provider.dart';
 import '../utils/app_colors.dart';
@@ -26,48 +27,51 @@ class ContactsScreen extends StatelessWidget {
       body: contactProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : contactProvider.errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 60, color: AppColors.error),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          contactProvider.errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.error),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        ElevatedButton(
-                          onPressed: () {
-                             // Try to reload, but we need the RoleProvider to do it from the top
-                          },
-                          child: const Text('Try Again'),
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 60,
+                      color: AppColors.error,
                     ),
-                  ),
-                )
-              : contactProvider.contacts.isEmpty
-                  ? _EmptyContacts(onAdd: () => _showAddContactSheet(context))
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      itemCount: contactProvider.contacts.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: AppSpacing.sm),
-                      itemBuilder: (context, index) {
-                        final contact = contactProvider.contacts[index];
-                        return _ContactCard(
-                          contact: contact,
-                          onCall: () => _callContact(context, contact),
-                          onDelete: () =>
-                              _confirmDelete(context, contactProvider, contact),
-                        );
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      contactProvider.errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Try to reload, but we need the RoleProvider to do it from the top
                       },
+                      child: const Text('Try Again'),
                     ),
+                  ],
+                ),
+              ),
+            )
+          : contactProvider.contacts.isEmpty
+          ? _EmptyContacts(onAdd: () => _showAddContactSheet(context))
+          : ListView.separated(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              itemCount: contactProvider.contacts.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final contact = contactProvider.contacts[index];
+                return _ContactCard(
+                  contact: contact,
+                  onCall: () => _callContact(context, contact),
+                  onDelete: () =>
+                      _confirmDelete(context, contactProvider, contact),
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddContactSheet(context),
         icon: const Icon(Icons.person_add_alt_1),
@@ -77,14 +81,27 @@ class ContactsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _callContact(
-      BuildContext context, ContactModel contact) async {
+  Future<void> _callContact(BuildContext context, ContactModel contact) async {
+    final status = await Permission.phone.request();
+    if (!status.isGranted) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Phone permission is required to make calls.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     bool? res = await FlutterPhoneDirectCaller.callNumber(contact.phone);
     if (res == null || !res) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cannot call ${contact.name}. Check the number or permissions.'),
+            content: Text(
+              'Cannot call ${contact.name}. Check the number or permissions.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -108,8 +125,7 @@ class ContactsScreen extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Remove'),
           ),
@@ -159,7 +175,9 @@ class _ContactCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.md),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
             // Avatar with initial
@@ -172,9 +190,7 @@ class _ContactCard extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  contact.name.isNotEmpty
-                      ? contact.name[0].toUpperCase()
-                      : '?',
+                  contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
