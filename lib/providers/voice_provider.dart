@@ -28,6 +28,12 @@ class VoiceProvider extends ChangeNotifier {
   String _selectedLanguage = 'en-IN';
   String get selectedLanguage => _selectedLanguage;
 
+  /// Debounce timer — waits for final result before acting on call commands
+  Timer? _commandDebounce;
+
+  /// Track whether we've already acted on the current listening session
+  bool _commandExecuted = false;
+
   Future<bool> _initSpeech() async {
     if (_isInitialized) return true;
     await _tts.setLanguage(_selectedLanguage);
@@ -36,15 +42,18 @@ class VoiceProvider extends ChangeNotifier {
 
     _isInitialized = await _speech.initialize(
       onError: (error) {
+        debugPrint('[VoiceProvider] Speech error: ${error.errorMsg}');
         _errorMessage = error.errorMsg;
         _state = VoiceState.idle;
+        _commandDebounce?.cancel();
         notifyListeners();
       },
       onStatus: (status) {
+        debugPrint('[VoiceProvider] Speech status: $status');
         if (status == 'done' || status == 'notListening') {
           if (_state == VoiceState.listening) {
-            _state = VoiceState.idle;
-            notifyListeners();
+            // Speech engine stopped — process whatever we have
+            _processAccumulatedWords();
           }
         }
       },
@@ -58,6 +67,12 @@ class VoiceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Cached references for the current listening session
+  AlertProvider? _currentAlertProvider;
+  String _currentElderName = 'Elder User';
+  RoleProvider? _currentRoleProvider;
+  ContactProvider? _currentContactProvider;
+
   Future<void> startListening(
     BuildContext context,
     AlertProvider alertProvider, {
@@ -66,6 +81,9 @@ class VoiceProvider extends ChangeNotifier {
     ContactProvider? contactProvider,
   }) async {
     _errorMessage = null;
+    _commandExecuted = false;
+    _commandDebounce?.cancel();
+
     final available = await _initSpeech();
 
     if (!available) {
@@ -74,33 +92,77 @@ class VoiceProvider extends ChangeNotifier {
       return;
     }
 
+    // Cache references for use in callbacks
+    _currentAlertProvider = alertProvider;
+    _currentElderName = elderName;
+    _currentRoleProvider = roleProvider;
+    _currentContactProvider = contactProvider;
+
     _state = VoiceState.listening;
     _lastWords = '';
     notifyListeners();
-
-    // Removed long TTS prompt so the user can speak immediately
-    // await _tts.speak('Voice assistant activated. Say Help for emergency, or say Call and a name.');
 
     await _speech.listen(
       onResult: (result) async {
         _lastWords = result.recognizedWords;
         notifyListeners();
 
+        if (_commandExecuted) return;
         if (_state != VoiceState.listening) return;
 
         final words = result.recognizedWords.toLowerCase().trim();
+        if (words.isEmpty) return;
 
+        debugPrint('[VoiceProvider] Heard: "$words" (final: ${result.finalResult})');
+
+        // PRIORITY 1: Distress/emergency keywords — act IMMEDIATELY (even on partial)
         if (_containsDistressKeywords(words)) {
-          await _detectHelp(alertProvider, elderName: elderName);
-        } else if (_containsCallKeywords(words)) {
-          // Extract who to call from spoken words
-          final targetName = _extractCallTarget(words);
-          await _detectCall(
-            roleProvider: roleProvider,
-            contactProvider: contactProvider,
-            targetName: targetName,
-          );
-        } else if (result.finalResult && words.isNotEmpty) {
+          _commandExecuted = true;
+          _commandDebounce?.cancel();
+          await _detectHelp(alertProvider, elderName: elderName,
+              roleProvider: roleProvider);
+          return;
+        }
+
+        // PRIORITY 2: Call commands — wait for FINAL result to get the full name
+        if (_containsCallIntent(words)) {
+          if (result.finalResult) {
+            // Final result — act now
+            _commandDebounce?.cancel();
+            _commandExecuted = true;
+            final targetName = _extractCallTarget(words);
+            debugPrint('[VoiceProvider] Call target extracted: "$targetName"');
+            await _detectCall(
+              roleProvider: roleProvider,
+              contactProvider: contactProvider,
+              targetName: targetName,
+            );
+          } else {
+            // Partial result — set/reset debounce timer.
+            // If no final result arrives, this timer will process what we have.
+            _commandDebounce?.cancel();
+            _commandDebounce = Timer(const Duration(milliseconds: 2500), () {
+              if (!_commandExecuted && _state == VoiceState.listening) {
+                _commandExecuted = true;
+                final targetName = _extractCallTarget(
+                    _lastWords.toLowerCase().trim());
+                debugPrint(
+                    '[VoiceProvider] Debounce fired, call target: "$targetName"');
+                _detectCall(
+                  roleProvider: roleProvider,
+                  contactProvider: contactProvider,
+                  targetName: targetName,
+                );
+              }
+            });
+          }
+          return;
+        }
+
+        // PRIORITY 3: Unknown command — only on final result
+        if (result.finalResult && words.isNotEmpty) {
+          _commandDebounce?.cancel();
+          _commandExecuted = true;
           await _handleUnknownCommand();
         }
       },
@@ -115,6 +177,40 @@ class VoiceProvider extends ChangeNotifier {
     );
   }
 
+  /// Called when the speech engine status becomes 'done' or 'notListening'
+  /// and we haven't acted yet — process whatever words we accumulated.
+  void _processAccumulatedWords() {
+    if (_commandExecuted) {
+      _state = VoiceState.idle;
+      notifyListeners();
+      return;
+    }
+
+    final words = _lastWords.toLowerCase().trim();
+    if (words.isEmpty) {
+      _state = VoiceState.idle;
+      notifyListeners();
+      return;
+    }
+
+    _commandDebounce?.cancel();
+    _commandExecuted = true;
+
+    if (_containsDistressKeywords(words)) {
+      _detectHelp(_currentAlertProvider!, elderName: _currentElderName,
+          roleProvider: _currentRoleProvider);
+    } else if (_containsCallIntent(words)) {
+      final targetName = _extractCallTarget(words);
+      _detectCall(
+        roleProvider: _currentRoleProvider,
+        contactProvider: _currentContactProvider,
+        targetName: targetName,
+      );
+    } else {
+      _handleUnknownCommand();
+    }
+  }
+
   // ─────────────────────────────────────────────
   // DISTRESS DETECTION
   // ─────────────────────────────────────────────
@@ -122,15 +218,22 @@ class VoiceProvider extends ChangeNotifier {
   bool _containsDistressKeywords(String words) {
     const keywords = [
       // English
-      'help', 'help me', 'emergency', 'save me', 'call ambulance', 'i fell',
-      // Hindi (Romanized)
-      'bachao', 'madad', 'gir gaya', 'gir gayi',
+      'help', 'help me', 'emergency', 'save me', 'call ambulance',
+      'i fell', 'i fall', 'fallen', 'danger',
+      // Hindi (Romanized — multiple transliterations)
+      'bachao', 'bachav', 'madad', 'madath', 'gir gaya', 'gir gayi',
+      'gir gaye', 'bacha lo', 'bacha le', 'emergency hai',
+      'koi bachao', 'help karo', 'sahayata',
       // Hindi (Devanagari)
-      'बचाओ', 'मदद', 'गिर गया', 'गिर गई',
-      // Malayalam (Romanized)
-      'sahayam', 'sahayikku', 'rakshikku', 'veenu',
+      'बचाओ', 'मदद', 'गिर गया', 'गिर गई', 'गिर गये',
+      'बचा लो', 'सहायता', 'एमरजेंसी', 'हेल्प',
+      // Malayalam (Romanized — multiple transliterations)
+      'sahayam', 'sahayikku', 'sahayikkoo', 'rakshikku', 'rakshikkoo',
+      'veenu', 'veezhu', 'rakshikkanam', 'sahayam venam',
+      'help cheyyoo', 'help cheyyu',
       // Malayalam (Script)
       'സഹായം', 'സഹായിക്കൂ', 'രക്ഷിക്കൂ', 'വീണു',
+      'രക്ഷിക്കണം', 'സഹായം വേണം', 'ഹെൽപ്പ്',
     ];
     return keywords.any((kw) => words.contains(kw));
   }
@@ -138,6 +241,7 @@ class VoiceProvider extends ChangeNotifier {
   Future<void> _detectHelp(
     AlertProvider alertProvider, {
     String elderName = 'Elder User',
+    RoleProvider? roleProvider,
   }) async {
     if (_state == VoiceState.detectedHelp) return;
 
@@ -145,8 +249,21 @@ class VoiceProvider extends ChangeNotifier {
     notifyListeners();
 
     await _speech.stop();
-    await _tts.speak('Help detected. Contacting your caregiver now.');
+
+    // Trigger emergency alert
     await alertProvider.triggerEmergency(elderName: elderName);
+
+    // ALSO call caregiver phone if available
+    if (roleProvider != null && roleProvider.caregiverPhone.isNotEmpty) {
+      await _tts.speak('Help detected. Calling your caregiver now.');
+      // Small delay so TTS can start before the dial screen takes over
+      await Future.delayed(const Duration(milliseconds: 1500));
+      await _dialNumber(roleProvider.caregiverPhone);
+    } else {
+      await _tts.speak(
+        'Help detected. Emergency alert sent. No caregiver phone is set up.',
+      );
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -154,85 +271,156 @@ class VoiceProvider extends ChangeNotifier {
   // ─────────────────────────────────────────────
 
   /// Returns true if the utterance contains any call-intent phrase.
-  /// This includes generic caregiver calls AND named calls ("call adil").
-  bool _containsCallKeywords(String words) {
-    // Static keyword list (caregiver / family / generic call phrases)
+  /// This does NOT distinguish between generic "call caregiver" vs "call Adil".
+  /// That is handled by _extractCallTarget.
+  bool _containsCallIntent(String words) {
+    // ---- Static keyword list (multi-language) ----
     const staticKeywords = [
       // English — generic
       'call my son', 'call my daughter', 'call my caregiver',
       'call caregiver', 'make a call', 'call family', 'call friend',
-      'call my doctor', 'call doctor',
+      'call my doctor', 'call doctor', 'call my friend',
+      'phone call', 'make call', 'ring',
       // Hindi (Romanized)
       'call karo', 'phone karo', 'phone lagao', 'call lagao',
-      'mere beta ka call karo', 'mere bete ko call karo',
+      'mere beta ko call karo', 'mere bete ko call karo',
       'beti ko call karo', 'beta ko call karo',
       'doctor ko call karo', 'ambulance bulao',
+      'phone milao', 'call milao',
+      'ko call karo', 'ko phone karo', 'ko phone lagao',
+      'ko call lagao', 'ko call milao',
       // Hindi (Devanagari)
       'कॉल करो', 'फोन करो', 'फोन लगाओ', 'कॉल लगाओ',
       'मेरे बेटे को कॉल करो', 'बेटा को कॉल करो', 'बेटी को कॉल करो',
+      'को कॉल करो', 'को फोन करो', 'फोन मिलाओ',
       // Malayalam (Romanized)
-      'vilikku', 'phone cheyyu', 'makkale vilikku',
-      'mone vilikku', 'mole vilikku', 'doctore vilikku',
+      'vilikku', 'vilikkoo', 'vilikkuka', 'phone cheyyu', 'phone cheyyoo',
+      'makkale vilikku', 'mone vilikku', 'mole vilikku',
+      'doctore vilikku', 'phone cheyyuka',
+      'ne vilikku', 'ne vilikkoo', 'ne vilikkuka',
       // Malayalam (Script)
       'വിളിക്കൂ', 'ഫോൺ ചെയ്യൂ', 'മകനെ വിളിക്കൂ',
-      'മകളെ വിളിക്കൂ', 'വിളിക്കുക',
+      'മകളെ വിളിക്കൂ', 'വിളിക്കുക', 'ഫോൺ ചെയ്യുക',
+      'നെ വിളിക്കൂ', 'നെ വിളിക്കുക',
     ];
 
     if (staticKeywords.any((kw) => words.contains(kw))) return true;
 
-    // Dynamic pattern — "call [name]" in English/Hindi/Malayalam
-    // Catches "call adil", "adil ko call karo", "adil vilikku", etc.
-    final callPrefixPatterns = [
-      RegExp(r'\bcall\s+\w+'), // "call adil"
-      RegExp(r'\w+\s+ko\s+call'), // "adil ko call karo"
-      RegExp(r'\w+\s+vilikku'), // "adil vilikku"
-      RegExp(r'\w+\s+ko\s+phone'), // "adil ko phone karo"
-      RegExp(r'phone\s+\w+'), // "phone adil"
+    // ---- Dynamic regex patterns ----
+    final callPatterns = [
+      RegExp(r'\bcall\s+\w+'),        // "call adil", "call son"
+      RegExp(r'\w+\s+ko\s+call'),     // "adil ko call karo"
+      RegExp(r'\w+\s+ko\s+phone'),    // "adil ko phone karo"
+      RegExp(r'\w+\s+vilikku'),       // "adil vilikku"
+      RegExp(r'\w+\s+vilikkoo'),      // "adil vilikkoo"
+      RegExp(r'\w+\s+vilikkuka'),     // "adil vilikkuka"
+      RegExp(r'\bphone\s+\w+'),       // "phone adil"
+      RegExp(r'\bring\s+\w+'),        // "ring adil"
     ];
 
-    if (callPrefixPatterns.any((p) => p.hasMatch(words))) return true;
+    if (callPatterns.any((p) => p.hasMatch(words))) return true;
 
-    // Bare "call" word
-    return words == 'call';
+    // Bare "call" word — but only as exact word, NOT as partial like "callback"
+    if (RegExp(r'^\s*call\s*$').hasMatch(words)) return true;
+
+    return false;
   }
 
   /// Strips call-verb patterns to extract the target person's name.
   /// Returns empty string if it's a generic call (no name specified).
   String _extractCallTarget(String words) {
-    const genericPatterns = [
-      'call my caregiver',
-      'call caregiver',
-      'call karo',
-      'phone karo',
-      'phone lagao',
-      'call lagao',
-      'vilikku',
-      'phone cheyyu',
-      'call',
-      'make a call',
+    const genericPhrases = [
+      'call my caregiver', 'call caregiver',
+      'make a call', 'make call', 'phone call',
+      'call karo', 'phone karo', 'phone lagao', 'call lagao',
+      'phone milao', 'call milao',
+      'vilikku', 'vilikkoo', 'vilikkuka',
+      'phone cheyyu', 'phone cheyyoo', 'phone cheyyuka',
+      'कॉल करो', 'फोन करो', 'फोन लगाओ', 'कॉल लगाओ', 'फोन मिलाओ',
+      'വിളിക്കൂ', 'ഫോൺ ചെയ്യൂ', 'വിളിക്കുക', 'ഫോൺ ചെയ്യുക',
     ];
 
-    // Check if the entire string is just a generic pattern
-    final exactMatch = genericPatterns.any((pat) => words == pat);
-    if (exactMatch) return '';
+    // If the entire command is just a generic phrase → caregiver fallback
+    final trimmed = words.trim();
+    if (genericPhrases.any((pat) => trimmed == pat)) return '';
 
-    // Strip call-verb words to isolate the name
-    var cleaned = words
-        .replaceAll(RegExp(r'\bko\b'), '')
-        .replaceAll(RegExp(r'\bkaro\b'), '')
-        .replaceAll(RegExp(r'\bphone\b'), '')
-        .replaceAll(RegExp(r'\bcall\b'), '')
-        .replaceAll(RegExp(r'\bvilikku\b'), '')
-        .replaceAll(RegExp(r'\bvilichu\b'), '')
-        .replaceAll(RegExp(r'\bmere\b'), '')
-        .replaceAll(RegExp(r'\bmy\b'), '')
-        .replaceAll(RegExp(r'\blagao\b'), '')
-        .replaceAll(RegExp(r'\bplease\b'), '')
+    // ---- English extraction ----
+    // "call my son" → "son", "call adil" → "adil", "call my friend adil" → keep both
+    var cleaned = trimmed;
+
+    // Handle "call my X" / "call X"
+    final callMyMatch = RegExp(r'\bcall\s+my\s+(.+)$').firstMatch(cleaned);
+    if (callMyMatch != null) {
+      return callMyMatch.group(1)!.trim();
+    }
+    final callMatch = RegExp(r'\bcall\s+(.+)$').firstMatch(cleaned);
+    if (callMatch != null) {
+      final afterCall = callMatch.group(1)!.trim();
+      // Remove trailing noise words
+      return _cleanTrailingNoise(afterCall);
+    }
+
+    // Handle "ring X" / "phone X"
+    final phoneMatch = RegExp(r'\b(?:phone|ring)\s+(.+)$').firstMatch(cleaned);
+    if (phoneMatch != null) {
+      return _cleanTrailingNoise(phoneMatch.group(1)!.trim());
+    }
+
+    // ---- Hindi extraction ----
+    // "adil ko call karo" → "adil"
+    // "mere bete ko call karo" → "bete" → match as relationship
+    final hindiMatch = RegExp(r'^(.+?)\s+ko\s+(?:call|phone)\s*(?:karo|lagao|milao)?')
+        .firstMatch(cleaned);
+    if (hindiMatch != null) {
+      var name = hindiMatch.group(1)!.trim();
+      // Remove "mere" / "mera" / "meri"
+      name = name.replaceAll(RegExp(r'\b(?:mere|mera|meri)\b'), '').trim();
+      return name;
+    }
+    // "bete ko call karo" without "mere"
+    final hindiMatch2 = RegExp(r'^(.+?)\s+ko\s+(?:कॉल|फोन)\s*(?:करो|लगाओ|मिलाओ)?')
+        .firstMatch(cleaned);
+    if (hindiMatch2 != null) {
+      var name = hindiMatch2.group(1)!.trim();
+      name = name.replaceAll(RegExp(r'\b(?:मेरे|मेरा|मेरी)\b'), '').trim();
+      return name;
+    }
+
+    // ---- Malayalam extraction ----
+    // "adil vilikku" → "adil"
+    // "adil ne vilikku" → "adil"
+    final mlMatch = RegExp(r'^(.+?)\s+(?:ne\s+)?(?:vilikku|vilikkoo|vilikkuka|phone\s+cheyyu|phone\s+cheyyoo)$')
+        .firstMatch(cleaned);
+    if (mlMatch != null) {
+      return mlMatch.group(1)!.trim();
+    }
+    // Malayalam script: "അദിൽ നെ വിളിക്കൂ" → "അദിൽ"
+    final mlScriptMatch = RegExp(r'^(.+?)\s+(?:നെ\s+)?(?:വിളിക്കൂ|വിളിക്കുക|ഫോൺ\s+ചെയ്യൂ|ഫോൺ\s+ചെയ്യുക)$')
+        .firstMatch(cleaned);
+    if (mlScriptMatch != null) {
+      return mlScriptMatch.group(1)!.trim();
+    }
+
+    // ---- Fallback: strip all known verb/noise words ----
+    cleaned = cleaned
+        .replaceAll(RegExp(r'\b(?:ko|karo|phone|call|vilikku|vilikkoo|vilikkuka|vilichu)\b'), '')
+        .replaceAll(RegExp(r'\b(?:mere|mera|meri|my|please|now|lagao|milao|cheyyu|cheyyoo)\b'), '')
+        .replaceAll(RegExp(r'\b(?:make|a|ring)\b'), '')
         .trim();
 
-    // Return the first remaining word as the candidate name
     final parts = cleaned.split(RegExp(r'\s+'));
-    return parts.isNotEmpty ? parts.first : '';
+    // Return the first meaningful remaining word
+    for (final p in parts) {
+      if (p.isNotEmpty && p.length > 1) return p;
+    }
+    return parts.isNotEmpty && parts.first.isNotEmpty ? parts.first : '';
+  }
+
+  /// Remove trailing noise words after the name
+  String _cleanTrailingNoise(String s) {
+    return s
+        .replaceAll(RegExp(r'\s+(?:now|please|quickly|fast|jaldi)\s*$'), '')
+        .trim();
   }
 
   Future<void> _detectCall({
@@ -250,27 +438,61 @@ class VoiceProvider extends ChangeNotifier {
 
     await _speech.stop();
 
-    // — Step 1: Try contact by name (if a name was extracted)
+    debugPrint('[VoiceProvider] _detectCall: targetName="$targetName", '
+        'contactProvider=${contactProvider != null}, '
+        'contacts count=${contactProvider?.contacts.length ?? 0}');
+
+    // — Step 1: Try contact by name/relationship (if a name was extracted)
     if (targetName.isNotEmpty && contactProvider != null) {
       final contact = contactProvider.findByName(targetName);
+      debugPrint('[VoiceProvider] findByName("$targetName") => ${contact?.name ?? "null"}');
       if (contact != null) {
         await _tts.speak('Calling ${contact.name} now.');
+        await Future.delayed(const Duration(milliseconds: 1200));
         await _dialNumber(contact.phone);
         return;
-      } else {
-        // Name heard but not in contacts — inform and do not call caregiver
-        await _tts.speak(
-          'Contact "$targetName" not found. Please add the contact in settings.',
-        );
-        _state = VoiceState.idle;
-        notifyListeners();
-        return;
       }
+
+      // Also try matching relationship words
+      // Map common Hindi/Malayalam relationship words to English
+      final relationshipMap = {
+        // Hindi
+        'beta': 'son', 'bete': 'son', 'beti': 'daughter',
+        'बेटा': 'son', 'बेटे': 'son', 'बेटी': 'daughter',
+        'doctor': 'doctor', 'dost': 'friend', 'दोस्त': 'friend',
+        'डॉक्टर': 'doctor',
+        // Malayalam
+        'mone': 'son', 'mon': 'son', 'mole': 'daughter', 'mol': 'daughter',
+        'മകൻ': 'son', 'മകൾ': 'daughter',
+        // English
+        'son': 'son', 'daughter': 'daughter', 'friend': 'friend',
+        'caregiver': 'caregiver',
+      };
+
+      final mappedRelationship = relationshipMap[targetName.toLowerCase()];
+      if (mappedRelationship != null) {
+        final relContact = contactProvider.findByName(mappedRelationship);
+        if (relContact != null) {
+          await _tts.speak('Calling ${relContact.name} now.');
+          await Future.delayed(const Duration(milliseconds: 1200));
+          await _dialNumber(relContact.phone);
+          return;
+        }
+      }
+
+      // Name heard but not in contacts
+      await _tts.speak(
+        'No contact named "$targetName" found. Please add the contact first.',
+      );
+      _state = VoiceState.idle;
+      notifyListeners();
+      return;
     }
 
-    // — Step 2: Fall back to caregiver phone
+    // — Step 2: No specific name → fall back to caregiver phone
     if (roleProvider != null && roleProvider.caregiverPhone.isNotEmpty) {
       await _tts.speak('Calling your caregiver now.');
+      await Future.delayed(const Duration(milliseconds: 1200));
       await _dialNumber(roleProvider.caregiverPhone);
     } else {
       await _tts.speak(
@@ -289,6 +511,7 @@ class VoiceProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    debugPrint('[VoiceProvider] Dialing: $phone');
     bool? res = await FlutterPhoneDirectCaller.callNumber(phone);
     if (res == null || !res) {
       await _tts.speak("Sorry, I couldn't make the phone call.");
@@ -313,9 +536,17 @@ class VoiceProvider extends ChangeNotifier {
     notifyListeners();
 
     await _speech.stop();
-    await _tts.speak(
-      "I'm sorry, I didn't understand that. Please say Help for emergency, or Call followed by a name.",
-    );
+
+    // Respond in the selected language
+    String message;
+    if (_selectedLanguage.startsWith('hi')) {
+      message = 'माफ़ कीजिए, मुझे समझ नहीं आया। मदद के लिए "बचाओ" बोलें, या कॉल करने के लिए "कॉल करो" बोलें।';
+    } else if (_selectedLanguage.startsWith('ml')) {
+      message = 'ക്ഷമിക്കണം, എനിക്ക് മനസ്സിലായില്ല. സഹായത്തിന് "സഹായം" എന്ന് പറയൂ, അല്ലെങ്കിൽ വിളിക്കാൻ "വിളിക്കൂ" എന്ന് പറയൂ.';
+    } else {
+      message = "I'm sorry, I didn't understand that. Say Help for emergency, or Call followed by a name.";
+    }
+    await _tts.speak(message);
   }
 
   // ─────────────────────────────────────────────
@@ -325,6 +556,8 @@ class VoiceProvider extends ChangeNotifier {
   void stopListening() {
     _speech.stop();
     _tts.stop();
+    _commandDebounce?.cancel();
+    _commandExecuted = false;
     _state = VoiceState.idle;
     _lastWords = '';
     notifyListeners();
@@ -334,11 +567,14 @@ class VoiceProvider extends ChangeNotifier {
     _state = VoiceState.idle;
     _lastWords = '';
     _errorMessage = null;
+    _commandDebounce?.cancel();
+    _commandExecuted = false;
     notifyListeners();
   }
 
   @override
   void dispose() {
+    _commandDebounce?.cancel();
     _speech.cancel();
     super.dispose();
   }

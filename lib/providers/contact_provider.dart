@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/contact_model.dart';
@@ -112,34 +113,69 @@ class ContactProvider extends ChangeNotifier {
     if (query.trim().isEmpty) return null;
     final q = query.trim().toLowerCase();
 
-    // 0. Exact match on relationship (e.g. "son", "daughter", "caregiver")
+    debugPrint('[ContactProvider] findByName("$q"), contacts: ${_contacts.length}');
     for (final c in _contacts) {
-      if (c.relationship.toLowerCase() == q) return c;
+      debugPrint('  -> ${c.name} (${c.relationship}) ${c.phone}');
     }
 
-    // 1. Exact match (case-insensitive)
+    // 0. Translate Hindi/Malayalam relationship words to English
+    const relationshipTranslations = {
+      // Hindi
+      'beta': 'son', 'bete': 'son', 'beti': 'daughter',
+      'dost': 'friend', 'doctor': 'doctor',
+      'बेटा': 'son', 'बेटे': 'son', 'बेटी': 'daughter',
+      'डॉक्टर': 'doctor', 'दोस्त': 'friend',
+      // Malayalam
+      'mone': 'son', 'mon': 'son', 'mole': 'daughter', 'mol': 'daughter',
+      'doctore': 'doctor',
+      'മകൻ': 'son', 'മകൾ': 'daughter',
+    };
+    final translatedQ = relationshipTranslations[q] ?? q;
+
+    // 1. Exact match on relationship (e.g. "son", "daughter", "caregiver")
     for (final c in _contacts) {
-      if (c.name.toLowerCase() == q) return c;
+      if (c.relationship.toLowerCase() == translatedQ) {
+        debugPrint('  => Matched by relationship: ${c.name}');
+        return c;
+      }
     }
 
-    // 2. Starts-with match
+    // 2. Exact name match (case-insensitive)
     for (final c in _contacts) {
-      if (c.name.toLowerCase().startsWith(q)) return c;
+      if (c.name.toLowerCase() == q) {
+        debugPrint('  => Matched by exact name: ${c.name}');
+        return c;
+      }
     }
 
-    // 3. Contains match
+    // 3. Starts-with match
     for (final c in _contacts) {
-      if (c.name.toLowerCase().contains(q)) return c;
+      if (c.name.toLowerCase().startsWith(q)) {
+        debugPrint('  => Matched by starts-with: ${c.name}');
+        return c;
+      }
     }
 
-    // 4. Token overlap — spoken name may be partially heard
+    // 4. Contains match
+    for (final c in _contacts) {
+      if (c.name.toLowerCase().contains(q)) {
+        debugPrint('  => Matched by contains: ${c.name}');
+        return c;
+      }
+    }
+
+    // 5. Token overlap — spoken name may be partially heard
     final queryTokens = q.split(' ');
     for (final c in _contacts) {
       final nameTokens = c.name.toLowerCase().split(' ');
       final overlap = queryTokens.any((t) => nameTokens.contains(t));
-      if (overlap) return c;
+      if (overlap) {
+        debugPrint('  => Matched by token overlap: ${c.name}');
+        return c;
+      }
     }
 
+    debugPrint('  => No match found for "$q"');
     return null;
   }
 }

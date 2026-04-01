@@ -52,8 +52,12 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
     /// Auto navigate to emergency when help detected (once)
     if (voiceProvider.state == VoiceState.detectedHelp && !_hasNavigated) {
       _hasNavigated = true;
+      final router = GoRouter.of(context);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.go('/elder/emergency');
+        // Delay navigation so TTS + call can begin first
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) router.go('/elder/emergency');
+        });
       });
     }
 
@@ -242,10 +246,47 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
 
               const SizedBox(height: AppSpacing.lg),
 
-              const Text(
-                "Say 'Help' or 'Emergency' to automatically trigger emergency assistance.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Voice Commands:',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      '🆘 Emergency: "Help", "Emergency", "बचाओ", "മദद", "സഹായം"',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '📞 Call contact: "Call Adil", "Call my son", "Call doctor"',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '📞 Hindi: "Adil ko call karo", "Beta ko phone lagao"',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '📞 Malayalam: "Adil vilikku", "Mone vilikku"',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -292,9 +333,9 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
       case VoiceState.processing:
         return 'Processing Voice';
       case VoiceState.detectedHelp:
-        return 'Help Detected!';
+        return '🆘 Help Detected!';
       case VoiceState.detectedCall:
-        return 'Calling Caregiver...';
+        return '📞 Calling...';
     }
   }
 
@@ -303,11 +344,11 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
       case VoiceState.idle:
         return 'Press the button and speak clearly.';
       case VoiceState.listening:
-        return 'Listening for distress keywords. Speak clearly.';
+        return 'Listening for your command. Speak clearly.';
       case VoiceState.processing:
         return 'Analyzing your voice input.';
       case VoiceState.detectedHelp:
-        return 'Triggering emergency assistance now...';
+        return 'Calling caregiver & sending emergency alert...';
       case VoiceState.detectedCall:
         return 'Initiating phone call now...';
     }
