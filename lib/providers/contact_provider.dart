@@ -111,7 +111,14 @@ class ContactProvider extends ChangeNotifier {
   /// Returns null if no match found.
   ContactModel? findByName(String query) {
     if (query.trim().isEmpty) return null;
-    final q = query.trim().toLowerCase();
+
+    // Normalize: lowercase, strip punctuation, trim
+    final q = query
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), '')
+        .trim();
+
+    if (q.isEmpty) return null;
 
     debugPrint('[ContactProvider] findByName("$q"), contacts: ${_contacts.length}');
     for (final c in _contacts) {
@@ -132,7 +139,7 @@ class ContactProvider extends ChangeNotifier {
     };
     final translatedQ = relationshipTranslations[q] ?? q;
 
-    // 1. Exact match on relationship (e.g. "son", "daughter", "caregiver")
+    // 1. Exact match on relationship
     for (final c in _contacts) {
       if (c.relationship.toLowerCase() == translatedQ) {
         debugPrint('  => Matched by relationship: ${c.name}');
@@ -175,7 +182,55 @@ class ContactProvider extends ChangeNotifier {
       }
     }
 
+    // 6. Fuzzy match (Levenshtein distance) — handles slight mispronunciation
+    //    e.g. STT hears "Adal" but contact is "Adil"
+    ContactModel? bestFuzzy;
+    int bestDist = 999;
+    for (final c in _contacts) {
+      // Compare against each token of the contact name
+      for (final namePart in c.name.toLowerCase().split(' ')) {
+        for (final queryPart in queryTokens) {
+          if (queryPart.length < 2) continue; // skip single-char tokens
+          final dist = _levenshtein(queryPart, namePart);
+          // Allow 1 edit per 4 chars, minimum threshold = 1
+          final threshold = (namePart.length / 4).ceil().clamp(1, 3);
+          if (dist <= threshold && dist < bestDist) {
+            bestDist = dist;
+            bestFuzzy = c;
+          }
+        }
+      }
+    }
+    if (bestFuzzy != null) {
+      debugPrint('  => Matched by fuzzy (dist=$bestDist): ${bestFuzzy.name}');
+      return bestFuzzy;
+    }
+
     debugPrint('  => No match found for "$q"');
     return null;
+  }
+
+  /// Levenshtein distance between two strings.
+  int _levenshtein(String a, String b) {
+    if (a == b) return 0;
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+
+    // Use two-row DP for memory efficiency
+    List<int> prev = List.generate(b.length + 1, (i) => i);
+    List<int> curr = List.filled(b.length + 1, 0);
+
+    for (int i = 1; i <= a.length; i++) {
+      curr[0] = i;
+      for (int j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        curr[j] = [curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost]
+            .reduce((x, y) => x < y ? x : y);
+      }
+      final tmp = prev;
+      prev = curr;
+      curr = tmp;
+    }
+    return prev[b.length];
   }
 }

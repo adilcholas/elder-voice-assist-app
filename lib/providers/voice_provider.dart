@@ -110,10 +110,11 @@ class VoiceProvider extends ChangeNotifier {
         if (_commandExecuted) return;
         if (_state != VoiceState.listening) return;
 
-        final words = result.recognizedWords.toLowerCase().trim();
+        // Normalize: lowercase, trim, collapse spaces, strip leading punctuation
+        final words = _normalize(result.recognizedWords);
         if (words.isEmpty) return;
 
-        debugPrint('[VoiceProvider] Heard: "$words" (final: ${result.finalResult})');
+        debugPrint('[VoiceProvider] Heard (normalized): "$words" (final: ${result.finalResult})');
 
         // PRIORITY 1: Distress/emergency keywords — act IMMEDIATELY (even on partial)
         if (_containsDistressKeywords(words)) {
@@ -186,7 +187,7 @@ class VoiceProvider extends ChangeNotifier {
       return;
     }
 
-    final words = _lastWords.toLowerCase().trim();
+    final words = _normalize(_lastWords);
     if (words.isEmpty) {
       _state = VoiceState.idle;
       notifyListeners();
@@ -274,9 +275,28 @@ class VoiceProvider extends ChangeNotifier {
   /// This does NOT distinguish between generic "call caregiver" vs "call Adil".
   /// That is handled by _extractCallTarget.
   bool _containsCallIntent(String words) {
-    // ---- Static keyword list (multi-language) ----
+    // ---- Dynamic regex patterns (\S+ matches Unicode names too) ----
+    final callPatterns = [
+      RegExp(r'\bcall\s+\S+'),          // "call adil", "call son"
+      RegExp(r'\S+\s+ko\s+call'),       // "adil ko call karo"
+      RegExp(r'\S+\s+ko\s+phone'),      // "adil ko phone karo"
+      RegExp(r'\S+\s+vilikku'),         // "adil vilikku"
+      RegExp(r'\S+\s+vilikkoo'),        // "adil vilikkoo"
+      RegExp(r'\S+\s+vilikkuka'),       // "adil vilikkuka"
+      RegExp(r'\S+\s+vilichu'),         // "adil vilichu"
+      RegExp(r'\bphone\s+\S+'),         // "phone adil"
+      RegExp(r'\bring\s+\S+'),          // "ring adil"
+      // Malayalam script suffixes
+      RegExp(r'\S+\s+(?:വിളിക്കൂ|വിളിക്കുക|ഫോൺ\s+ചെയ്യൂ|ഫോൺ\s+ചെയ്യുക)'),
+      // Hindi Devanagari
+      RegExp(r'\S+\s+को\s+(?:कॉल|फोन)'),
+    ];
+
+    if (callPatterns.any((p) => p.hasMatch(words))) return true;
+
+    // ---- Static keyword list (multi-language, no-name generic phrases) ----
     const staticKeywords = [
-      // English — generic
+      // English
       'call my son', 'call my daughter', 'call my caregiver',
       'call caregiver', 'make a call', 'call family', 'call friend',
       'call my doctor', 'call doctor', 'call my friend',
@@ -293,8 +313,8 @@ class VoiceProvider extends ChangeNotifier {
       'कॉल करो', 'फोन करो', 'फोन लगाओ', 'कॉल लगाओ',
       'मेरे बेटे को कॉल करो', 'बेटा को कॉल करो', 'बेटी को कॉल करो',
       'को कॉल करो', 'को फोन करो', 'फोन मिलाओ',
-      // Malayalam (Romanized)
-      'vilikku', 'vilikkoo', 'vilikkuka', 'phone cheyyu', 'phone cheyyoo',
+      // Malayalam (Romanized standalone — without a name)
+      'phone cheyyu', 'phone cheyyoo',
       'makkale vilikku', 'mone vilikku', 'mole vilikku',
       'doctore vilikku', 'phone cheyyuka',
       'ne vilikku', 'ne vilikkoo', 'ne vilikkuka',
@@ -306,110 +326,133 @@ class VoiceProvider extends ChangeNotifier {
 
     if (staticKeywords.any((kw) => words.contains(kw))) return true;
 
-    // ---- Dynamic regex patterns ----
-    final callPatterns = [
-      RegExp(r'\bcall\s+\w+'),        // "call adil", "call son"
-      RegExp(r'\w+\s+ko\s+call'),     // "adil ko call karo"
-      RegExp(r'\w+\s+ko\s+phone'),    // "adil ko phone karo"
-      RegExp(r'\w+\s+vilikku'),       // "adil vilikku"
-      RegExp(r'\w+\s+vilikkoo'),      // "adil vilikkoo"
-      RegExp(r'\w+\s+vilikkuka'),     // "adil vilikkuka"
-      RegExp(r'\bphone\s+\w+'),       // "phone adil"
-      RegExp(r'\bring\s+\w+'),        // "ring adil"
-    ];
-
-    if (callPatterns.any((p) => p.hasMatch(words))) return true;
-
-    // Bare "call" word — but only as exact word, NOT as partial like "callback"
+    // Bare "call" word only
     if (RegExp(r'^\s*call\s*$').hasMatch(words)) return true;
 
     return false;
   }
 
+  /// Normalize text: lowercase, trim, collapse spaces, strip leading punctuation.
+  String _normalize(String raw) {
+    return raw
+        .toLowerCase()
+        .trim()
+        // strip common punctuation that STT sometimes appends
+        .replaceAll(RegExp(r'[,\.!?;:"]+'), '')
+        // collapse multiple spaces
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
+        .trim();
+  }
+
   /// Strips call-verb patterns to extract the target person's name.
-  /// Returns empty string if it's a generic call (no name specified).
+  /// Returns empty string ONLY if it is truly a no-name generic command.
   String _extractCallTarget(String words) {
-    const genericPhrases = [
+    // Phrases that are PURELY generic (no name embedded)
+    // NOTE: bare verb words like "vilikku" alone are generic,
+    // but "<name> vilikku" must NOT be blocked here.
+    const strictGenericPhrases = [
       'call my caregiver', 'call caregiver',
       'make a call', 'make call', 'phone call',
       'call karo', 'phone karo', 'phone lagao', 'call lagao',
       'phone milao', 'call milao',
-      'vilikku', 'vilikkoo', 'vilikkuka',
       'phone cheyyu', 'phone cheyyoo', 'phone cheyyuka',
       'कॉल करो', 'फोन करो', 'फोन लगाओ', 'कॉल लगाओ', 'फोन मिलाओ',
+      // Malayalam standalone (no name prefix)
+      'vilikku', 'vilikkoo', 'vilikkuka', 'vilichu',
+      'mone vilikku', 'mole vilikku', 'makkale vilikku', 'doctore vilikku',
+      'ne vilikku', 'ne vilikkoo', 'ne vilikkuka',
       'വിളിക്കൂ', 'ഫോൺ ചെയ്യൂ', 'വിളിക്കുക', 'ഫോൺ ചെയ്യുക',
+      'നെ വിളിക്കൂ', 'നെ വിളിക്കുക',
+      'മകനെ വിളിക്കൂ', 'മകളെ വിളിക്കൂ',
     ];
 
-    // If the entire command is just a generic phrase → caregiver fallback
     final trimmed = words.trim();
-    if (genericPhrases.any((pat) => trimmed == pat)) return '';
 
-    // ---- English extraction ----
-    // "call my son" → "son", "call adil" → "adil", "call my friend adil" → keep both
-    var cleaned = trimmed;
-
-    // Handle "call my X" / "call X"
-    final callMyMatch = RegExp(r'\bcall\s+my\s+(.+)$').firstMatch(cleaned);
+    // ---- 1. English: "call my X" / "call X" ----
+    final callMyMatch = RegExp(r'^call\s+my\s+(.+)$').firstMatch(trimmed);
     if (callMyMatch != null) {
-      return callMyMatch.group(1)!.trim();
+      return _cleanTrailingNoise(callMyMatch.group(1)!.trim());
     }
-    final callMatch = RegExp(r'\bcall\s+(.+)$').firstMatch(cleaned);
+    final callMatch = RegExp(r'^call\s+(.+)$').firstMatch(trimmed);
     if (callMatch != null) {
-      final afterCall = callMatch.group(1)!.trim();
-      // Remove trailing noise words
-      return _cleanTrailingNoise(afterCall);
+      return _cleanTrailingNoise(callMatch.group(1)!.trim());
     }
 
-    // Handle "ring X" / "phone X"
-    final phoneMatch = RegExp(r'\b(?:phone|ring)\s+(.+)$').firstMatch(cleaned);
+    // ---- 2. English: "ring X" / "phone X" ----
+    final phoneMatch = RegExp(r'^(?:phone|ring)\s+(.+)$').firstMatch(trimmed);
     if (phoneMatch != null) {
       return _cleanTrailingNoise(phoneMatch.group(1)!.trim());
     }
 
-    // ---- Hindi extraction ----
-    // "adil ko call karo" → "adil"
-    // "mere bete ko call karo" → "bete" → match as relationship
-    final hindiMatch = RegExp(r'^(.+?)\s+ko\s+(?:call|phone)\s*(?:karo|lagao|milao)?')
-        .firstMatch(cleaned);
+    // ---- 3. Hindi Romanized: "adil ko call karo" → "adil" ----
+    // \S+ handles both ASCII and Unicode names
+    final hindiMatch = RegExp(
+            r'^(.+?)\s+ko\s+(?:call|phone)\s*(?:karo|lagao|milao|karna)?\s*$')
+        .firstMatch(trimmed);
     if (hindiMatch != null) {
       var name = hindiMatch.group(1)!.trim();
-      // Remove "mere" / "mera" / "meri"
       name = name.replaceAll(RegExp(r'\b(?:mere|mera|meri)\b'), '').trim();
-      return name;
-    }
-    // "bete ko call karo" without "mere"
-    final hindiMatch2 = RegExp(r'^(.+?)\s+ko\s+(?:कॉल|फोन)\s*(?:करो|लगाओ|मिलाओ)?')
-        .firstMatch(cleaned);
-    if (hindiMatch2 != null) {
-      var name = hindiMatch2.group(1)!.trim();
-      name = name.replaceAll(RegExp(r'\b(?:मेरे|मेरा|मेरी)\b'), '').trim();
+      debugPrint('[VoiceProvider] Hindi extraction: "$name"');
       return name;
     }
 
-    // ---- Malayalam extraction ----
-    // "adil vilikku" → "adil"
-    // "adil ne vilikku" → "adil"
-    final mlMatch = RegExp(r'^(.+?)\s+(?:ne\s+)?(?:vilikku|vilikkoo|vilikkuka|phone\s+cheyyu|phone\s+cheyyoo)$')
-        .firstMatch(cleaned);
+    // ---- 4. Hindi Devanagari: "अदिल को कॉल करो" ----
+    final hindiDevaMatch = RegExp(
+            r'^(.+?)\s+को\s+(?:कॉल|फोन)\s*(?:करो|लगाओ|मिलाओ)?\s*$')
+        .firstMatch(trimmed);
+    if (hindiDevaMatch != null) {
+      var name = hindiDevaMatch.group(1)!.trim();
+      name = name.replaceAll(RegExp(r'(?:मेरे|मेरा|मेरी)'), '').trim();
+      debugPrint('[VoiceProvider] Hindi-Deva extraction: "$name"');
+      return name;
+    }
+
+    // ---- 5. Malayalam Romanized: "adil vilikku" / "adil ne vilikku" ----
+    // (.+?) is greedy-lazy so it captures everything before the verb
+    final mlMatch = RegExp(
+            r'^(.+?)\s+(?:ne\s+)?(?:vilikku|vilikkoo|vilikkuka|vilichu|phone\s+cheyyu|phone\s+cheyyoo|phone\s+cheyyuka)\s*$')
+        .firstMatch(trimmed);
     if (mlMatch != null) {
-      return mlMatch.group(1)!.trim();
-    }
-    // Malayalam script: "അദിൽ നെ വിളിക്കൂ" → "അദിൽ"
-    final mlScriptMatch = RegExp(r'^(.+?)\s+(?:നെ\s+)?(?:വിളിക്കൂ|വിളിക്കുക|ഫോൺ\s+ചെയ്യൂ|ഫോൺ\s+ചെയ്യുക)$')
-        .firstMatch(cleaned);
-    if (mlScriptMatch != null) {
-      return mlScriptMatch.group(1)!.trim();
+      final name = mlMatch.group(1)!.trim();
+      debugPrint('[VoiceProvider] Malayalam-Roman extraction: "$name"');
+      return name;
     }
 
-    // ---- Fallback: strip all known verb/noise words ----
-    cleaned = cleaned
-        .replaceAll(RegExp(r'\b(?:ko|karo|phone|call|vilikku|vilikkoo|vilikkuka|vilichu)\b'), '')
-        .replaceAll(RegExp(r'\b(?:mere|mera|meri|my|please|now|lagao|milao|cheyyu|cheyyoo)\b'), '')
-        .replaceAll(RegExp(r'\b(?:make|a|ring)\b'), '')
+    // ---- 6. Malayalam Script: "അദിൽ വിളിക്കൂ" ----
+    final mlScriptMatch = RegExp(
+            r'^(.+?)\s+(?:നെ\s+)?(?:വിളിക്കൂ|വിളിക്കുക|ഫോൺ\s+ചെയ്യൂ|ഫോൺ\s+ചെയ്യുക)\s*$')
+        .firstMatch(trimmed);
+    if (mlScriptMatch != null) {
+      final name = mlScriptMatch.group(1)!.trim();
+      debugPrint('[VoiceProvider] Malayalam-Script extraction: "$name"');
+      return name;
+    }
+
+    // ---- 7. Strict generic check → caregiver fallback ----
+    if (strictGenericPhrases.any((pat) => trimmed == pat ||
+        trimmed.endsWith(' $pat') ||
+        trimmed.startsWith('$pat '))) {
+      debugPrint('[VoiceProvider] Generic command detected, falling back to caregiver');
+      return '';
+    }
+
+    // ---- 8. Token scrub fallback ----
+    var cleaned = trimmed
+        .replaceAll(
+            RegExp(
+                r'\b(?:ko|karo|phone|call|vilikku|vilikkoo|vilikkuka|vilichu|ring)\b'),
+            '')
+        .replaceAll(
+            RegExp(
+                r'\b(?:mere|mera|meri|my|please|now|lagao|milao|cheyyu|cheyyoo|ne|make|a)\b'),
+            '')
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
         .trim();
 
+    debugPrint('[VoiceProvider] Token-scrub fallback name: "$cleaned"');
+    if (cleaned.isEmpty) return '';
+
     final parts = cleaned.split(RegExp(r'\s+'));
-    // Return the first meaningful remaining word
     for (final p in parts) {
       if (p.isNotEmpty && p.length > 1) return p;
     }
