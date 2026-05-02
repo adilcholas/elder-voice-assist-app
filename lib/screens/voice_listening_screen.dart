@@ -272,17 +272,17 @@ class _VoiceListeningScreenState extends State<VoiceListeningScreen>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      '📞 Call contact: "Call Adil", "Call my son", "Call doctor"',
+                      '📞 Call contact: "Call <name>", "Call my son", "Call doctor"',
                       style: TextStyle(fontSize: 14),
                     ),
                     SizedBox(height: 4),
                     Text(
-                      '📞 Hindi: "Adil ko call karo", "Beta ko phone lagao"',
+                      '📞 Hindi: "<name> ko call karo", "Beta ko phone lagao"',
                       style: TextStyle(fontSize: 14),
                     ),
                     SizedBox(height: 4),
                     Text(
-                      '📞 Malayalam: "Adil vilikku", "Mone vilikku"',
+                      '📞 Malayalam: "<name> vilikku", "Mone vilikku"',
                       style: TextStyle(fontSize: 14),
                     ),
                   ],

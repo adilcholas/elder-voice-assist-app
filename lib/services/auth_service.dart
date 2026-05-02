@@ -44,7 +44,7 @@ class AuthService {
       email: email,
       password: password,
     );
-    
+
     if (credential.user != null) {
       final uid = credential.user!.uid;
 
@@ -75,8 +75,12 @@ class AuthService {
   String _generateInviteCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
-    return String.fromCharCodes(Iterable.generate(
-        6, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+    return String.fromCharCodes(
+      Iterable.generate(
+        6,
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+      ),
+    );
   }
 
   Future<bool> linkElder(String caregiverUid, String elderInviteCode) async {
@@ -94,22 +98,16 @@ class AuthService {
         final elderUid = elderDoc.id;
 
         // Update caregiver's linkedUserId
-        await _firestore
-            .collection('users')
-            .doc(caregiverUid)
-            .update({
-              'linkedUserId': elderUid,
-              'linkedUserIds': FieldValue.arrayUnion([elderUid]),
-            });
+        await _firestore.collection('users').doc(caregiverUid).update({
+          'linkedUserId': elderUid,
+          'linkedUserIds': FieldValue.arrayUnion([elderUid]),
+        });
 
         // Update elder's linkedUserId
-        await _firestore
-            .collection('users')
-            .doc(elderUid)
-            .update({
-              'linkedUserId': caregiverUid,
-              'linkedUserIds': FieldValue.arrayUnion([caregiverUid]),
-            });
+        await _firestore.collection('users').doc(elderUid).update({
+          'linkedUserId': caregiverUid,
+          'linkedUserIds': FieldValue.arrayUnion([caregiverUid]),
+        });
         return true;
       }
       return false; // Invite code not found

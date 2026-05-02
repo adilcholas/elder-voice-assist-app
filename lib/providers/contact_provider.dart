@@ -183,7 +183,7 @@ class ContactProvider extends ChangeNotifier {
     }
 
     // 6. Fuzzy match (Levenshtein distance) — handles slight mispronunciation
-    //    e.g. STT hears "Adal" but contact is "Adil"
+    //    e.g. STT hears "Rajan" but contact is "Rajani"
     ContactModel? bestFuzzy;
     int bestDist = 999;
     for (final c in _contacts) {
